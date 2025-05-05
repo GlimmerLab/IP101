@@ -1,0 +1,47 @@
+# 构建目录
+build/
+dist/
+*.egg-info/
+
+# 编译文件
+*.o
+*.so
+*.dll
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 测试文件
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 文档
+docs/html/
+docs/latex/
+
+# 临时文件
+*.tmp
+*.bak
+*.backup
+*.orig
+
+# 系统文件
+.DS_Store
+Thumbs.db

@@ -1,0 +1,32 @@
+# 基础依赖
+numpy>=1.19.0
+opencv-python>=4.5.0
+scipy>=1.6.2
+matplotlib>=3.3.4
+Pillow>=8.1.0
+
+# 图像处理
+scikit-image>=0.18.1
+scikit-learn>=0.24.2
+
+# 深度学习
+# torch>=1.8.0
+# torchvision>=0.9.0
+
+# 工具包
+tqdm>=4.60.0
+pandas>=1.2.4
+seaborn>=0.11.1
+
+# 文档
+sphinx>=4.0.2
+sphinx-rtd-theme>=0.5.2
+
+# 测试
+pytest>=6.0.0
+pytest-cov>=2.10.0
+
+# 代码质量
+black>=21.5b2
+flake8>=3.9.2
+isort>=5.9.2
