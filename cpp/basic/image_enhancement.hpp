@@ -10,56 +10,64 @@ namespace ip101 {
 /**
  * @brief 直方图均衡化
  * @param src 输入图像
- * @return 均衡化后的图像
+ * @param dst 输出图像
+ * @param method 均衡化方法("global", "adaptive", "clahe")
+ * @param clip_limit CLAHE的对比度限制阈值
+ * @param grid_size CLAHE的网格大小
  */
-cv::Mat histogram_equalization(const cv::Mat& src);
+void histogram_equalization(const cv::Mat& src, cv::Mat& dst,
+                          const std::string& method = "global",
+                          double clip_limit = 40.0,
+                          cv::Size grid_size = cv::Size(8, 8));
 
 /**
  * @brief 伽马变换
  * @param src 输入图像
+ * @param dst 输出图像
  * @param gamma 伽马值
- * @return 变换后的图像
  */
-cv::Mat gamma_transform(const cv::Mat& src, double gamma);
+void gamma_correction(const cv::Mat& src, cv::Mat& dst, double gamma);
 
 /**
  * @brief 对比度拉伸
  * @param src 输入图像
+ * @param dst 输出图像
  * @param min_val 最小输出值
  * @param max_val 最大输出值
- * @return 拉伸后的图像
  */
-cv::Mat contrast_stretching(const cv::Mat& src, double min_val = 0, double max_val = 255);
+void contrast_stretching(const cv::Mat& src, cv::Mat& dst,
+                        double min_val = 0, double max_val = 255);
 
 /**
  * @brief 亮度调整
  * @param src 输入图像
- * @param brightness 亮度调整值(-255到255)
- * @return 调整后的图像
+ * @param dst 输出图像
+ * @param beta 亮度调整值(-255到255)
  */
-cv::Mat adjust_brightness(const cv::Mat& src, int brightness);
+void brightness_adjustment(const cv::Mat& src, cv::Mat& dst, double beta);
 
 /**
  * @brief 饱和度调整
  * @param src 输入图像
- * @param saturation 饱和度调整值(-100到100)
- * @return 调整后的图像
+ * @param dst 输出图像
+ * @param saturation 饱和度调整值(0到2)
  */
-cv::Mat adjust_saturation(const cv::Mat& src, int saturation);
+void saturation_adjustment(const cv::Mat& src, cv::Mat& dst, double saturation);
 
 /**
  * @brief 计算图像直方图
  * @param src 输入图像
- * @return 直方图(256维向量)
+ * @param hist 输出直方图
+ * @param channel 通道索引(对于彩色图像)
  */
-std::vector<int> calculate_histogram(const cv::Mat& src);
+void calculate_histogram(const cv::Mat& src, cv::Mat& hist, int channel = 0);
 
 /**
  * @brief 计算累积分布函数
  * @param histogram 直方图
- * @return 累积分布函数
+ * @param cdf 输出累积分布函数
  */
-std::vector<float> calculate_cdf(const std::vector<int>& histogram);
+void calculate_cdf(const cv::Mat& hist, cv::Mat& cdf);
 
 /**
  * @brief 局部直方图均衡化

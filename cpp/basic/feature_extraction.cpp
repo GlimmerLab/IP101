@@ -1,6 +1,7 @@
 #include "feature_extraction.hpp"
 #include <cmath>
 #include <vector>
+#include <omp.h>
 
 namespace ip101 {
 
@@ -129,17 +130,30 @@ void sift_features(const Mat& src, Mat& dst, int nfeatures) {
         gray = src.clone();
     }
 
-    // 创建SIFT对象
-    Ptr<SIFT> sift = SIFT::create(nfeatures);
+    // 创建SIFT对象，添加更多参数控制
+    Ptr<SIFT> sift = SIFT::create(
+        nfeatures,           // 特征点数量
+        4,                   // 金字塔层数
+        0.04,               // 对比度阈值
+        10,                 // 边缘响应阈值
+        1.6                 // sigma值
+    );
 
-    // 检测关键点和描述子
-    std::vector<KeyPoint> keypoints;
-    Mat descriptors;
-    sift->detectAndCompute(gray, Mat(), keypoints, descriptors);
+    // 使用OpenMP并行计算
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            // 检测关键点和描述子
+            std::vector<KeyPoint> keypoints;
+            Mat descriptors;
+            sift->detectAndCompute(gray, Mat(), keypoints, descriptors);
 
-    // 在原图上绘制关键点
-    drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
-                 DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+            // 在原图上绘制关键点
+            drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
+                         DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        }
+    }
 }
 
 void surf_features(const Mat& src, Mat& dst, double hessian_threshold) {
@@ -153,17 +167,30 @@ void surf_features(const Mat& src, Mat& dst, double hessian_threshold) {
         gray = src.clone();
     }
 
-    // 创建SURF对象
-    Ptr<SURF> surf = SURF::create(hessian_threshold);
+    // 创建SURF对象，添加更多参数控制
+    Ptr<SURF> surf = SURF::create(
+        hessian_threshold,    // Hessian阈值
+        4,                    // 金字塔层数
+        2,                    // 描述子维度
+        true,                 // 是否使用U-SURF
+        false                 // 是否使用扩展描述子
+    );
 
-    // 检测关键点和描述子
-    std::vector<KeyPoint> keypoints;
-    Mat descriptors;
-    surf->detectAndCompute(gray, Mat(), keypoints, descriptors);
+    // 使用OpenMP并行计算
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            // 检测关键点和描述子
+            std::vector<KeyPoint> keypoints;
+            Mat descriptors;
+            surf->detectAndCompute(gray, Mat(), keypoints, descriptors);
 
-    // 在原图上绘制关键点
-    drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
-                 DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+            // 在原图上绘制关键点
+            drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
+                         DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        }
+    }
 }
 
 void orb_features(const Mat& src, Mat& dst, int nfeatures) {
@@ -177,17 +204,34 @@ void orb_features(const Mat& src, Mat& dst, int nfeatures) {
         gray = src.clone();
     }
 
-    // 创建ORB对象
-    Ptr<ORB> orb = ORB::create(nfeatures);
+    // 创建ORB对象，添加更多参数控制
+    Ptr<ORB> orb = ORB::create(
+        nfeatures,           // 特征点数量
+        1.2f,               // 尺度因子
+        8,                  // 金字塔层数
+        31,                 // 边缘阈值
+        0,                  // 第一层金字塔的尺度
+        2,                  // WTA_K
+        ORB::HARRIS_SCORE,  // 评分类型
+        31,                 // 补丁大小
+        20                  // 快速阈值
+    );
 
-    // 检测关键点和描述子
-    std::vector<KeyPoint> keypoints;
-    Mat descriptors;
-    orb->detectAndCompute(gray, Mat(), keypoints, descriptors);
+    // 使用OpenMP并行计算
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            // 检测关键点和描述子
+            std::vector<KeyPoint> keypoints;
+            Mat descriptors;
+            orb->detectAndCompute(gray, Mat(), keypoints, descriptors);
 
-    // 在原图上绘制关键点
-    drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
-                 DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+            // 在原图上绘制关键点
+            drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
+                         DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        }
+    }
 }
 
 void feature_matching(const Mat& src1, const Mat& src2,
@@ -210,35 +254,70 @@ void feature_matching(const Mat& src1, const Mat& src2,
     // 创建特征检测器
     Ptr<Feature2D> detector;
     if (method == "sift") {
-        detector = SIFT::create();
+        detector = SIFT::create(0, 4, 0.04, 10, 1.6);
     } else if (method == "surf") {
-        detector = SURF::create();
+        detector = SURF::create(100, 4, 2, true, false);
     } else if (method == "orb") {
-        detector = ORB::create();
+        detector = ORB::create(500, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20);
     } else {
         throw std::invalid_argument("Unsupported feature detection method: " + method);
     }
 
-    // 检测关键点和描述子
+    // 使用OpenMP并行计算
     std::vector<KeyPoint> keypoints1, keypoints2;
     Mat descriptors1, descriptors2;
-    detector->detectAndCompute(gray1, Mat(), keypoints1, descriptors1);
-    detector->detectAndCompute(gray2, Mat(), keypoints2, descriptors2);
+
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            detector->detectAndCompute(gray1, Mat(), keypoints1, descriptors1);
+        }
+        #pragma omp section
+        {
+            detector->detectAndCompute(gray2, Mat(), keypoints2, descriptors2);
+        }
+    }
 
     // 创建特征匹配器
     Ptr<DescriptorMatcher> matcher;
     if (method == "sift" || method == "surf") {
-        matcher = BFMatcher::create(NORM_L2);
+        matcher = BFMatcher::create(NORM_L2, true);  // 使用交叉检查
     } else {
-        matcher = BFMatcher::create(NORM_HAMMING);
+        matcher = BFMatcher::create(NORM_HAMMING, true);
     }
 
     // 进行特征匹配
     std::vector<DMatch> matches;
     matcher->match(descriptors1, descriptors2, matches);
 
+    // 计算匹配点之间的距离
+    std::vector<double> distances;
+    for (const auto& match : matches) {
+        distances.push_back(match.distance);
+    }
+
+    // 计算距离的均值和标准差
+    double mean = 0.0, stddev = 0.0;
+    for (double d : distances) {
+        mean += d;
+    }
+    mean /= distances.size();
+    for (double d : distances) {
+        stddev += (d - mean) * (d - mean);
+    }
+    stddev = std::sqrt(stddev / distances.size());
+
+    // 筛选好的匹配点
+    std::vector<DMatch> good_matches;
+    for (const auto& match : matches) {
+        if (match.distance < mean - stddev) {
+            good_matches.push_back(match);
+        }
+    }
+
     // 绘制匹配结果
-    drawMatches(src1, keypoints1, src2, keypoints2, matches, dst,
+    drawMatches(src1, keypoints1, src2, keypoints2, good_matches, dst,
                Scalar::all(-1), Scalar::all(-1),
                std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 }

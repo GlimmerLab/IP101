@@ -426,4 +426,211 @@ Mat structure_propagation_inpaint(
     return result;
 }
 
+Mat patchmatch_inpaint(
+    const Mat& src,
+    const Mat& mask,
+    int patch_size,
+    int num_iterations) {
+
+    Mat result = src.clone();
+    int half_patch = patch_size / 2;
+
+    // 初始化随机匹配
+    RNG rng;
+    Mat offsets(mask.size(), CV_32SC2);
+    for(int i = 0; i < mask.rows; i++) {
+        for(int j = 0; j < mask.cols; j++) {
+            if(mask.at<uchar>(i,j) > 0) {
+                int dx = rng.uniform(0, src.cols);
+                int dy = rng.uniform(0, src.rows);
+                offsets.at<Vec2i>(i,j) = Vec2i(dx-j, dy-i);
+            }
+        }
+    }
+
+    // 迭代优化
+    for(int iter = 0; iter < num_iterations; iter++) {
+        // 传播
+        for(int i = 0; i < mask.rows; i++) {
+            for(int j = 0; j < mask.cols; j++) {
+                if(mask.at<uchar>(i,j) > 0) {
+                    // 检查相邻像素的匹配
+                    vector<Point> neighbors = {
+                        Point(j-1,i), Point(j+1,i),
+                        Point(j,i-1), Point(j,i+1)
+                    };
+
+                    for(const auto& n : neighbors) {
+                        if(n.x >= 0 && n.x < mask.cols &&
+                           n.y >= 0 && n.y < mask.rows) {
+                            Vec2i offset = offsets.at<Vec2i>(n);
+                            Point match(j+offset[0], i+offset[1]);
+
+                            if(match.x >= 0 && match.x < src.cols &&
+                               match.y >= 0 && match.y < src.rows) {
+                                double dist = compute_patch_similarity(
+                                    src, src, Point(j,i), match, patch_size);
+                                Vec2i currOffset = offsets.at<Vec2i>(i,j);
+                                Point currMatch(j+currOffset[0], i+currOffset[1]);
+                                if(dist < compute_patch_similarity(
+                                    src, src, Point(j,i), currMatch, patch_size)) {
+                                    offsets.at<Vec2i>(i,j) = offset;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 随机搜索
+        for(int i = 0; i < mask.rows; i++) {
+            for(int j = 0; j < mask.cols; j++) {
+                if(mask.at<uchar>(i,j) > 0) {
+                    int searchRadius = src.cols;
+                    while(searchRadius > 1) {
+                        int dx = rng.uniform(-searchRadius, searchRadius);
+                        int dy = rng.uniform(-searchRadius, searchRadius);
+                        Point match(j+dx, i+dy);
+
+                        if(match.x >= 0 && match.x < src.cols &&
+                           match.y >= 0 && match.y < src.rows) {
+                            double dist = compute_patch_similarity(
+                                src, src, Point(j,i), match, patch_size);
+                            Vec2i currOffset = offsets.at<Vec2i>(i,j);
+                            Point currMatch(j+currOffset[0], i+currOffset[1]);
+                            if(dist < compute_patch_similarity(
+                                src, src, Point(j,i), currMatch, patch_size)) {
+                                offsets.at<Vec2i>(i,j) = Vec2i(dx, dy);
+                            }
+                        }
+                        searchRadius /= 2;
+                    }
+                }
+            }
+        }
+    }
+
+    // 应用最佳匹配
+    for(int i = 0; i < mask.rows; i++) {
+        for(int j = 0; j < mask.cols; j++) {
+            if(mask.at<uchar>(i,j) > 0) {
+                Vec2i offset = offsets.at<Vec2i>(i,j);
+                Point match(j+offset[0], i+offset[1]);
+                if(match.x >= 0 && match.x < src.cols &&
+                   match.y >= 0 && match.y < src.rows) {
+                    result.at<Vec3b>(i,j) = src.at<Vec3b>(match);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+vector<Mat> video_inpaint(
+    const vector<Mat>& frames,
+    const vector<Mat>& masks,
+    int patch_size,
+    int num_iterations) {
+
+    vector<Mat> results;
+    for(const auto& frame : frames) {
+        results.push_back(frame.clone());
+    }
+    int half_patch = patch_size / 2;
+
+    // 计算光流场
+    vector<Mat> flow_forward, flow_backward;
+    for(size_t i = 0; i < frames.size()-1; i++) {
+        Mat flow;
+        calcOpticalFlowFarneback(frames[i], frames[i+1], flow,
+                               0.5, 3, 15, 3, 5, 1.2, 0);
+        flow_forward.push_back(flow);
+    }
+
+    for(size_t i = frames.size()-1; i > 0; i--) {
+        Mat flow;
+        calcOpticalFlowFarneback(frames[i], frames[i-1], flow,
+                               0.5, 3, 15, 3, 5, 1.2, 0);
+        flow_backward.push_back(flow);
+    }
+
+    // 迭代修复
+    for(int iter = 0; iter < num_iterations; iter++) {
+        for(size_t t = 0; t < frames.size(); t++) {
+            // 获取时空邻域
+            vector<Mat> temporal_patches;
+            if(t > 0) {
+                Mat map1, map2;
+                Mat& flow = flow_backward[t-1];
+                convertMaps(flow, Mat(), map1, map2, CV_32FC1);
+                Mat warped;
+                remap(results[t-1], warped, map1, map2, INTER_LINEAR);
+                temporal_patches.push_back(warped);
+            }
+            if(t < frames.size()-1) {
+                Mat map1, map2;
+                Mat& flow = flow_forward[t];
+                convertMaps(flow, Mat(), map1, map2, CV_32FC1);
+                Mat warped;
+                remap(results[t+1], warped, map1, map2, INTER_LINEAR);
+                temporal_patches.push_back(warped);
+            }
+
+            // 修复当前帧
+            for(int i = half_patch; i < frames[t].rows-half_patch; i++) {
+                for(int j = half_patch; j < frames[t].cols-half_patch; j++) {
+                    if(masks[t].at<uchar>(i,j) > 0) {
+                        double min_dist = numeric_limits<double>::max();
+                        Point best_match;
+
+                        // 空间匹配
+                        for(int di = -half_patch; di <= half_patch; di++) {
+                            for(int dj = -half_patch; dj <= half_patch; dj++) {
+                                if(masks[t].at<uchar>(i+di,j+dj) == 0) {
+                                    double dist = compute_patch_similarity(
+                                        results[t], results[t],
+                                        Point(j,i), Point(j+dj,i+di), patch_size);
+                                    if(dist < min_dist) {
+                                        min_dist = dist;
+                                        best_match = Point(j+dj,i+di);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 时间匹配
+                        for(const auto& patch : temporal_patches) {
+                            for(int di = -half_patch; di <= half_patch; di++) {
+                                for(int dj = -half_patch; dj <= half_patch; dj++) {
+                                    Point pt(j+dj, i+di);
+                                    if(pt.x >= 0 && pt.x < patch.cols &&
+                                       pt.y >= 0 && pt.y < patch.rows) {
+                                        double dist = compute_patch_similarity(
+                                            results[t], patch,
+                                            Point(j,i), pt, patch_size);
+                                        if(dist < min_dist) {
+                                            min_dist = dist;
+                                            best_match = pt;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 应用最佳匹配
+                        if(min_dist < numeric_limits<double>::max()) {
+                            results[t].at<Vec3b>(i,j) =
+                                results[t].at<Vec3b>(best_match);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return results;
+}
+
 } // namespace ip101

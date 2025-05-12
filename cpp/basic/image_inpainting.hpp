@@ -74,6 +74,34 @@ cv::Mat structure_propagation_inpaint(
     int patch_size = 9,
     int num_iterations = 10);
 
+/**
+ * @brief 基于PatchMatch的图像修复
+ * @param src 输入图像
+ * @param mask 待修复区域掩码(255表示需要修复的区域)
+ * @param patch_size 块大小
+ * @param num_iterations 迭代次数
+ * @return 修复后的图像
+ */
+cv::Mat patchmatch_inpaint(
+    const cv::Mat& src,
+    const cv::Mat& mask,
+    int patch_size = 7,
+    int num_iterations = 5);
+
+/**
+ * @brief 视频修复
+ * @param frames 输入视频帧列表
+ * @param masks 每帧的修复掩码列表
+ * @param patch_size 块大小
+ * @param num_iterations 迭代次数
+ * @return 修复后的视频帧列表
+ */
+std::vector<cv::Mat> video_inpaint(
+    const std::vector<cv::Mat>& frames,
+    const std::vector<cv::Mat>& masks,
+    int patch_size = 7,
+    int num_iterations = 5);
+
 } // namespace ip101
 
 #endif // IMAGE_INPAINTING_HPP

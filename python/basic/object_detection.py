@@ -56,6 +56,109 @@ def sliding_window_detection(img_path, window_size=(64, 64), stride=32):
 
     return result
 
+class HOGExtractor:
+    """HOG特征提取器"""
+    def __init__(self, win_size=(64, 128), block_size=(16, 16),
+                 block_stride=(8, 8), cell_size=(8, 8), nbins=9):
+        self.win_size = win_size
+        self.block_size = block_size
+        self.block_stride = block_stride
+        self.cell_size = cell_size
+        self.nbins = nbins
+
+        # 计算特征维度
+        n_cells = (win_size[0] // cell_size[0], win_size[1] // cell_size[1])
+        n_blocks = ((n_cells[0] - block_size[0] // cell_size[0]) // (block_stride[0] // cell_size[0]) + 1,
+                   (n_cells[1] - block_size[1] // cell_size[1]) // (block_stride[1] // cell_size[1]) + 1)
+        self.feature_dim = n_blocks[0] * n_blocks[1] * block_size[0] * block_size[1] * nbins // (cell_size[0] * cell_size[1])
+
+    def compute_gradients(self, img):
+        """计算图像梯度"""
+        # 确保图像是灰度图
+        if len(img.shape) > 2:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # 计算x和y方向的梯度
+        gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=1)
+        gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=1)
+
+        # 计算梯度幅值和方向
+        magnitude = np.sqrt(gx**2 + gy**2)
+        angle = np.arctan2(gy, gx) * 180 / np.pi
+        angle[angle < 0] += 180
+
+        return magnitude, angle
+
+    def compute_cell_histogram(self, magnitude, angle):
+        """计算cell直方图"""
+        n_cells = (self.win_size[0] // self.cell_size[0],
+                  self.win_size[1] // self.cell_size[1])
+        cell_hists = np.zeros((n_cells[1], n_cells[0], self.nbins))
+
+        # 计算每个像素的贡献
+        for y in range(magnitude.shape[0]):
+            for x in range(magnitude.shape[1]):
+                mag = magnitude[y, x]
+                ang = angle[y, x]
+
+                # 计算bin索引
+                bin_width = 180.0 / self.nbins
+                bin_idx = int(ang / bin_width)
+                next_bin = (bin_idx + 1) % self.nbins
+                alpha = (ang - bin_idx * bin_width) / bin_width
+
+                # 计算cell索引
+                cell_x = x // self.cell_size[0]
+                cell_y = y // self.cell_size[1]
+
+                if cell_x < n_cells[0] and cell_y < n_cells[1]:
+                    cell_hists[cell_y, cell_x, bin_idx] += mag * (1 - alpha)
+                    cell_hists[cell_y, cell_x, next_bin] += mag * alpha
+
+        return cell_hists
+
+    def compute_block_features(self, cell_hists):
+        """计算block特征并归一化"""
+        n_cells = (self.win_size[0] // self.cell_size[0],
+                  self.win_size[1] // self.cell_size[1])
+        n_blocks = ((n_cells[0] - self.block_size[0] // self.cell_size[0]) //
+                   (self.block_stride[0] // self.cell_size[0]) + 1,
+                   (n_cells[1] - self.block_size[1] // self.cell_size[1]) //
+                   (self.block_stride[1] // self.cell_size[1]) + 1)
+
+        features = []
+        for by in range(0, n_cells[1] - self.block_size[1] // self.cell_size[1] + 1,
+                       self.block_stride[1] // self.cell_size[1]):
+            for bx in range(0, n_cells[0] - self.block_size[0] // self.cell_size[0] + 1,
+                          self.block_stride[0] // self.cell_size[0]):
+                # 提取block中的cell直方图
+                block_features = cell_hists[by:by + self.block_size[1] // self.cell_size[1],
+                                         bx:bx + self.block_size[0] // self.cell_size[0]].flatten()
+
+                # L2-Norm归一化
+                norm = np.sqrt(np.sum(block_features**2) + 1e-5)
+                block_features = block_features / norm
+
+                features.extend(block_features)
+
+        return np.array(features)
+
+    def compute(self, img):
+        """计算HOG特征"""
+        # 调整图像大小
+        img = cv2.resize(img, self.win_size)
+
+        # 计算梯度
+        magnitude, angle = self.compute_gradients(img)
+
+        # 计算cell直方图
+        cell_hists = self.compute_cell_histogram(magnitude, angle)
+
+        # 计算block特征并归一化
+        features = self.compute_block_features(cell_hists)
+
+        return features
+
 def hog_svm_detection(img_path, window_size=(64, 64), stride=32):
     """
     问题72：HOG+SVM检测
@@ -76,21 +179,18 @@ def hog_svm_detection(img_path, window_size=(64, 64), stride=32):
 
     # 复制原图用于绘制结果
     result = img.copy()
-
-    # 转换为灰度图
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # 创建HOG描述子
-    hog = cv2.HOGDescriptor()
+    # 创建HOG特征提取器
+    hog = HOGExtractor(win_size=window_size)
 
     # 创建和训练SVM（这里使用简单的示例数据）
-    # 在实际应用中，需要使用大量的正负样本进行训练
     svm_classifier = svm.LinearSVC()
     scaler = StandardScaler()
 
     # 生成一些示例数据进行训练
     n_samples = 100
-    n_features = hog.compute(cv2.resize(gray, window_size)).shape[0]
+    n_features = hog.feature_dim
     X = np.random.randn(n_samples, n_features)
     y = np.random.randint(0, 2, n_samples)
 
@@ -103,7 +203,6 @@ def hog_svm_detection(img_path, window_size=(64, 64), stride=32):
         for x in range(0, img.shape[1] - window_size[0], stride):
             # 提取窗口
             window = gray[y:y+window_size[1], x:x+window_size[0]]
-            window = cv2.resize(window, window_size)
 
             # 计算HOG特征
             features = hog.compute(window)

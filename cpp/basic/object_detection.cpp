@@ -24,47 +24,61 @@ public:
           block_stride_(block_stride),
           cell_size_(cell_size),
           nbins_(nbins) {
-
         // 计算HOG特征维度
         Size n_cells(win_size.width / cell_size.width,
                     win_size.height / cell_size.height);
-        Size n_blocks((n_cells.width - block_size.width / cell_size.width) / (block_stride.width / cell_size.width) + 1,
-                     (n_cells.height - block_size.height / cell_size.height) / (block_stride.height / cell_size.height) + 1);
-        feature_dim_ = n_blocks.width * n_blocks.height * block_size.width * block_size.height * nbins / (cell_size.width * cell_size.height);
+        Size n_blocks((n_cells.width - block_size.width / cell_size.width) /
+                     (block_stride.width / cell_size.width) + 1,
+                     (n_cells.height - block_size.height / cell_size.height) /
+                     (block_stride.height / cell_size.height) + 1);
+        feature_dim_ = n_blocks.width * n_blocks.height *
+                      block_size.width * block_size.height *
+                      nbins / (cell_size.width * cell_size.height);
     }
 
-    vector<float> compute(const Mat& img) const {
-        // 调整图像大小
-        Mat resized;
-        resize(img, resized, win_size_);
-
-        // 计算梯度
-        Mat grad_x, grad_y;
-        Sobel(resized, grad_x, CV_32F, 1, 0);
-        Sobel(resized, grad_y, CV_32F, 0, 1);
-
-        // 计算梯度幅值和方向
-        Mat magnitude, angle;
-        cartToPolar(grad_x, grad_y, magnitude, angle);
-        angle *= 180.0 / CV_PI;
-
-        // 计算cell直方图
-        Size n_cells(win_size_.width / cell_size_.width,
-                    win_size_.height / cell_size_.height);
-        vector<vector<vector<float>>> cell_hists(n_cells.height,
-            vector<vector<float>>(n_cells.width, vector<float>(nbins_, 0)));
+    // 计算图像梯度
+    void computeGradients(const Mat& img, Mat& magnitude, Mat& angle) const {
+        magnitude = Mat::zeros(img.size(), CV_32F);
+        angle = Mat::zeros(img.size(), CV_32F);
 
         #pragma omp parallel for collapse(2)
-        for (int y = 0; y < resized.rows; y++) {
-            for (int x = 0; x < resized.cols; x++) {
+        for (int y = 1; y < img.rows - 1; y++) {
+            for (int x = 1; x < img.cols - 1; x++) {
+                // 计算x方向梯度
+                float gx = img.at<uchar>(y, x + 1) - img.at<uchar>(y, x - 1);
+                // 计算y方向梯度
+                float gy = img.at<uchar>(y + 1, x) - img.at<uchar>(y - 1, x);
+
+                // 计算梯度幅值
+                magnitude.at<float>(y, x) = std::sqrt(gx * gx + gy * gy);
+                // 计算梯度方向（角度）
+                angle.at<float>(y, x) = std::atan2(gy, gx) * 180.0 / CV_PI;
+                if (angle.at<float>(y, x) < 0) {
+                    angle.at<float>(y, x) += 180.0;
+                }
+            }
+        }
+    }
+
+    // 计算cell直方图
+    void computeCellHistogram(const Mat& magnitude, const Mat& angle,
+                            vector<vector<vector<float>>>& cell_hists) const {
+        Size n_cells(win_size_.width / cell_size_.width,
+                    win_size_.height / cell_size_.height);
+
+        #pragma omp parallel for collapse(2)
+        for (int y = 0; y < magnitude.rows; y++) {
+            for (int x = 0; x < magnitude.cols; x++) {
                 float mag = magnitude.at<float>(y, x);
                 float ang = angle.at<float>(y, x);
 
-                // 双线性插值
-                int bin = static_cast<int>(ang * nbins_ / 180.0) % nbins_;
+                // 计算bin索引
+                float bin_width = 180.0f / nbins_;
+                int bin = static_cast<int>(ang / bin_width);
                 int next_bin = (bin + 1) % nbins_;
-                float alpha = (ang * nbins_ / 180.0) - bin;
+                float alpha = (ang - bin * bin_width) / bin_width;
 
+                // 计算cell索引
                 int cell_x = x / cell_size_.width;
                 int cell_y = y / cell_size_.height;
 
@@ -76,16 +90,22 @@ public:
                 }
             }
         }
+    }
 
-        // 计算block特征并归一化
-        vector<float> features;
-        features.reserve(feature_dim_);
+    // 计算block特征并归一化
+    void computeBlockFeatures(const vector<vector<vector<float>>>& cell_hists,
+                            vector<float>& features) const {
+        Size n_cells(win_size_.width / cell_size_.width,
+                    win_size_.height / cell_size_.height);
+        Size n_blocks((n_cells.width - block_size_.width / cell_size_.width) /
+                     (block_stride_.width / cell_size_.width) + 1,
+                     (n_cells.height - block_size_.height / cell_size_.height) /
+                     (block_stride_.height / cell_size_.height) + 1);
 
-        Size n_blocks((n_cells.width - block_size_.width / cell_size_.width) / (block_stride_.width / cell_size_.width) + 1,
-                     (n_cells.height - block_size_.height / cell_size_.height) / (block_stride_.height / cell_size_.height) + 1);
-
-        for (int by = 0; by <= n_cells.height - block_size_.height / cell_size_.height; by += block_stride_.height / cell_size_.height) {
-            for (int bx = 0; bx <= n_cells.width - block_size_.width / cell_size_.width; bx += block_stride_.width / cell_size_.width) {
+        for (int by = 0; by <= n_cells.height - block_size_.height / cell_size_.height;
+             by += block_stride_.height / cell_size_.height) {
+            for (int bx = 0; bx <= n_cells.width - block_size_.width / cell_size_.width;
+                 bx += block_stride_.width / cell_size_.width) {
                 vector<float> block_features;
                 float norm = 0;
 
@@ -102,7 +122,7 @@ public:
                 }
 
                 // L2-Norm归一化
-                norm = sqrt(norm + 1e-5);
+                norm = std::sqrt(norm + 1e-5);
                 for (float& val : block_features) {
                     val /= norm;
                 }
@@ -112,6 +132,28 @@ public:
                               block_features.end());
             }
         }
+    }
+
+    vector<float> compute(const Mat& img) const {
+        // 调整图像大小
+        Mat resized;
+        resize(img, resized, win_size_);
+
+        // 计算梯度
+        Mat magnitude, angle;
+        computeGradients(resized, magnitude, angle);
+
+        // 计算cell直方图
+        Size n_cells(win_size_.width / cell_size_.width,
+                    win_size_.height / cell_size_.height);
+        vector<vector<vector<float>>> cell_hists(n_cells.height,
+            vector<vector<float>>(n_cells.width, vector<float>(nbins_, 0)));
+        computeCellHistogram(magnitude, angle, cell_hists);
+
+        // 计算block特征并归一化
+        vector<float> features;
+        features.reserve(feature_dim_);
+        computeBlockFeatures(cell_hists, features);
 
         return features;
     }

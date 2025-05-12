@@ -359,7 +359,7 @@ IP101/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/IP101.git
+git clone https://github.com/GlimmerLab/IP101.git
 ```
 
 2. Install dependencies:

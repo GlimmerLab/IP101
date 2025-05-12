@@ -27,6 +27,9 @@ void test_performance(const Mat& src, const Mat& mask, const string& method_name
     else if (method_name == "StructurePropagation") {
         result = structure_propagation_inpaint(src, mask);
     }
+    else if (method_name == "PatchMatchV2") {
+        result = patchmatch_inpaint(src, mask);
+    }
 
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
@@ -50,6 +53,9 @@ void compare_with_opencv(const Mat& src, const Mat& mask, const string& method_n
     }
     else if (method_name == "FastMarching") {
         result_ours = fast_marching_inpaint(src, mask);
+    }
+    else if (method_name == "PatchMatch") {
+        result_ours = patchmatch_inpaint(src, mask);
     }
 
     auto end_ours = chrono::high_resolution_clock::now();
@@ -85,6 +91,50 @@ void compare_with_opencv(const Mat& src, const Mat& mask, const string& method_n
     Scalar ssim = mean(result_ours.mul(result_opencv));
     cout << "PSNR: " << psnr << "dB" << endl;
     cout << "SSIM: " << ssim[0] << endl;
+}
+
+// 测试视频修复
+void test_video_inpaint(const string& video_path, const Mat& mask) {
+    // 读取视频帧
+    vector<Mat> frames;
+    vector<Mat> masks;
+    VideoCapture cap(video_path);
+    for(int i = 0; i < 5; i++) {  // 读取5帧
+        Mat frame;
+        if(cap.read(frame)) {
+            frames.push_back(frame);
+            masks.push_back(mask.clone());
+        }
+    }
+    cap.release();
+
+    if(frames.empty()) {
+        cout << "无法读取视频帧" << endl;
+        return;
+    }
+
+    // 测试视频修复
+    auto start = chrono::high_resolution_clock::now();
+    vector<Mat> results = video_inpaint(frames, masks);
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    cout << "视频修复处理耗时: " << duration.count() << "ms" << endl;
+
+    // 显示结果
+    for(size_t i = 0; i < results.size(); i++) {
+        imshow("原始帧 " + to_string(i), frames[i]);
+        imshow("修复结果 " + to_string(i), results[i]);
+    }
+    waitKey(0);
+
+    // 保存结果视频
+    VideoWriter writer("result_video.avi",
+                      VideoWriter::fourcc('M','J','P','G'),
+                      30, frames[0].size());
+    for(const auto& frame : results) {
+        writer.write(frame);
+    }
+    writer.release();
 }
 
 // 创建测试掩码
@@ -132,7 +182,8 @@ int main() {
         "PatchMatch",
         "FastMarching",
         "TextureSynthesis",
-        "StructurePropagation"
+        "StructurePropagation",
+        "PatchMatchV2"
     };
 
     for (const auto& mask_type : mask_types) {
@@ -142,11 +193,15 @@ int main() {
         for (const auto& method : methods) {
             cout << "\n测试 " << method << ":" << endl;
             test_performance(src, mask, method);
-            if (method == "Diffusion" || method == "FastMarching") {
+            if (method == "Diffusion" || method == "FastMarching" || method == "PatchMatch") {
                 compare_with_opencv(src, mask, method);
             }
         }
     }
+
+    // 测试视频修复
+    cout << "\n测试视频修复:" << endl;
+    test_video_inpaint("test_images/test_video.mp4", create_test_mask(src, "Rectangle"));
 
     return 0;
 }

@@ -176,12 +176,11 @@ inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
 
 // 使用AVX2优化的均值滤波实现
 Mat meanFilter_optimized(const Mat& src, int kernelSize) {
-    Mat dst(src.size(), src.type());
+    CV_Assert(!src.empty() && src.type() == CV_8UC1);
+    Mat dst = src.clone();
     int halfKernel = kernelSize / 2;
-    const int width = src.cols;
-    const int height = src.rows;
 
-    // 为边界处理创建扩展图像
+    // 创建扩展图像
     Mat padded;
     copyMakeBorder(src, padded, halfKernel, halfKernel, halfKernel, halfKernel, BORDER_REFLECT);
 
@@ -189,19 +188,23 @@ Mat meanFilter_optimized(const Mat& src, int kernelSize) {
     const __m256i div_factor = _mm256_set1_epi16(kernelSize * kernelSize);
 
     #pragma omp parallel for
-    for(int y = 0; y < height; y++) {
+    for (int y = 0; y < src.rows; y++) {
         uchar* dstRow = dst.ptr<uchar>(y);
 
-        // 每次处理32个像素
-        for(int x = 0; x <= width - 32; x += 32) {
+        // 使用AVX2优化
+        for (int x = 0; x <= src.cols - 32; x += 32) {
             __m256i sum = _mm256_setzero_si256();
 
             // 在核窗口内累加
-            for(int ky = -halfKernel; ky <= halfKernel; ky++) {
+            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
                 const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky) + x + halfKernel;
-                for(int kx = -halfKernel; kx <= halfKernel; kx++) {
-                    __m256i src_pixels = _mm256_loadu_si256((__m256i*)(srcPtr + kx));
-                    sum = _mm256_add_epi16(sum, _mm256_cvtepu8_epi16(_mm_loadu_si128((__m128i*)srcPtr)));
+                for (int kx = -halfKernel; kx <= halfKernel; kx++) {
+                    // 加载32个像素
+                    __m256i pixels = _mm256_loadu_si256((__m256i*)(srcPtr + kx));
+                    // 转换为16位整数
+                    __m256i pixels_16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(pixels, 0));
+                    // 累加
+                    sum = _mm256_add_epi16(sum, pixels_16);
                 }
             }
 
@@ -215,11 +218,11 @@ Mat meanFilter_optimized(const Mat& src, int kernelSize) {
         }
 
         // 处理剩余像素
-        for(int x = (width/32)*32; x < width; x++) {
+        for (int x = (src.cols/32)*32; x < src.cols; x++) {
             int sum = 0;
-            for(int ky = -halfKernel; ky <= halfKernel; ky++) {
+            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
                 const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky);
-                for(int kx = -halfKernel; kx <= halfKernel; kx++) {
+                for (int kx = -halfKernel; kx <= halfKernel; kx++) {
                     sum += srcPtr[x + halfKernel + kx];
                 }
             }
@@ -232,7 +235,8 @@ Mat meanFilter_optimized(const Mat& src, int kernelSize) {
 
 // 使用直方图优化的中值滤波实现
 Mat medianFilter_optimized(const Mat& src, int kernelSize) {
-    Mat dst(src.size(), src.type());
+    CV_Assert(!src.empty() && src.type() == CV_8UC1);
+    Mat dst = src.clone();
     int halfKernel = kernelSize / 2;
     int windowSize = kernelSize * kernelSize;
     int medianPos = windowSize / 2;
@@ -245,32 +249,60 @@ Mat medianFilter_optimized(const Mat& src, int kernelSize) {
     vector<int> histogram(256);
 
     #pragma omp parallel for private(histogram)
-    for(int y = 0; y < src.rows; y++) {
+    for (int y = 0; y < src.rows; y++) {
         uchar* dstRow = dst.ptr<uchar>(y);
 
-        for(int x = 0; x < src.cols; x += BLOCK_SIZE) {
-            const int blockEnd = min(x + BLOCK_SIZE, src.cols);
+        // 使用AVX2优化
+        for (int x = 0; x <= src.cols - 32; x += 32) {
+            // 重置直方图
+            fill(histogram.begin(), histogram.end(), 0);
 
-            for(int bx = x; bx < blockEnd; bx++) {
-                // 清空直方图
-                fill(histogram.begin(), histogram.end(), 0);
-
-                // 构建直方图
-                for(int ky = -halfKernel; ky <= halfKernel; ky++) {
-                    const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky);
-                    for(int kx = -halfKernel; kx <= halfKernel; kx++) {
-                        histogram[srcPtr[bx + halfKernel + kx]]++;
+            // 收集窗口内的像素值
+            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
+                const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky) + x + halfKernel;
+                for (int kx = -halfKernel; kx <= halfKernel; kx++) {
+                    // 使用AVX2加载8个像素
+                    __m256i pixels = _mm256_loadu_si256((__m256i*)(srcPtr + kx));
+                    // 更新直方图
+                    for (int i = 0; i < 32; i++) {
+                        histogram[pixels.m256i_u8[i]]++;
                     }
                 }
+            }
 
-                // 查找中位数
-                int count = 0;
-                for(int i = 0; i < 256; i++) {
-                    count += histogram[i];
-                    if(count > medianPos) {
-                        dstRow[bx] = static_cast<uchar>(i);
-                        break;
-                    }
+            // 计算中值
+            int count = 0;
+            for (int i = 0; i < 256; i++) {
+                count += histogram[i];
+                if (count > medianPos) {
+                    // 使用AVX2存储结果
+                    __m256i result = _mm256_set1_epi8(static_cast<uchar>(i));
+                    _mm256_storeu_si256((__m256i*)(dstRow + x), result);
+                    break;
+                }
+            }
+        }
+
+        // 处理剩余像素
+        for (int x = (src.cols/32)*32; x < src.cols; x++) {
+            // 重置直方图
+            fill(histogram.begin(), histogram.end(), 0);
+
+            // 收集窗口内的像素值
+            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
+                const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky);
+                for (int kx = -halfKernel; kx <= halfKernel; kx++) {
+                    histogram[srcPtr[x + halfKernel + kx]]++;
+                }
+            }
+
+            // 计算中值
+            int count = 0;
+            for (int i = 0; i < 256; i++) {
+                count += histogram[i];
+                if (count > medianPos) {
+                    dstRow[x] = static_cast<uchar>(i);
+                    break;
                 }
             }
         }
@@ -281,76 +313,60 @@ Mat medianFilter_optimized(const Mat& src, int kernelSize) {
 
 // 使用分离卷积和SIMD优化的高斯滤波实现
 Mat gaussianFilter_optimized(const Mat& src, int kernelSize, double sigma) {
-    Mat dst(src.size(), src.type());
+    CV_Assert(!src.empty() && src.type() == CV_8UC1);
+    Mat dst = src.clone();
     int halfKernel = kernelSize / 2;
 
-    // 预计算高斯核并转换为定点数
-    vector<int> kernel1D(kernelSize);
-    const int FIXED_POINT_SCALE = 1 << 14;
-    float sum = 0.0f;
+    // 创建扩展图像
+    Mat padded;
+    copyMakeBorder(src, padded, halfKernel, halfKernel, halfKernel, halfKernel, BORDER_REFLECT);
 
-    for(int i = 0; i < kernelSize; i++) {
-        float x = i - halfKernel;
-        kernel1D[i] = static_cast<int>(exp(-(x*x)/(2*sigma*sigma)) * FIXED_POINT_SCALE);
+    // 预计算高斯核
+    vector<double> kernel1D(kernelSize);
+    double sum = 0.0;
+    for (int i = 0; i < kernelSize; i++) {
+        double x = i - halfKernel;
+        kernel1D[i] = exp(-(x * x) / (2 * sigma * sigma));
         sum += kernel1D[i];
     }
-
     // 归一化
-    for(int i = 0; i < kernelSize; i++) {
-        kernel1D[i] = static_cast<int>((kernel1D[i] * FIXED_POINT_SCALE) / sum);
+    for (int i = 0; i < kernelSize; i++) {
+        kernel1D[i] /= sum;
     }
 
-    // 创建临时缓冲区，包含填充
-    Mat temp(src.rows, src.cols + 2 * halfKernel, CV_16S);
-
-    // 水平方向卷积（使用SSE4）
+    // 使用OpenMP并行计算
     #pragma omp parallel for
-    for(int y = 0; y < src.rows; y++) {
-        const uchar* srcRow = src.ptr<uchar>(y);
-        short* tempRow = temp.ptr<short>(y) + halfKernel;
+    for (int y = 0; y < src.rows; y++) {
+        uchar* dstRow = dst.ptr<uchar>(y);
+        const uchar* paddedRow = padded.ptr<uchar>(y + halfKernel);
 
-        // 使用SSE4处理每8个像素
-        for(int x = 0; x <= src.cols - 8; x += 8) {
-            __m128i sum = _mm_setzero_si128();
+        // 使用AVX2优化
+        for (int x = 0; x <= src.cols - 32; x += 32) {
+            __m256d sum = _mm256_setzero_pd();
+            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
+                const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky) + x + halfKernel;
+                __m256d kernel = _mm256_set1_pd(kernel1D[ky + halfKernel]);
 
-            for(int k = -halfKernel; k <= halfKernel; k++) {
-                __m128i pixels = _mm_loadl_epi64((__m128i*)(srcRow + x + k));
-                __m128i kernel_val = _mm_set1_epi16(kernel1D[k + halfKernel]);
-                sum = _mm_add_epi16(sum, _mm_mullo_epi16(_mm_cvtepu8_epi16(pixels), kernel_val));
+                // 加载8个像素
+                __m256i pixels = _mm256_loadu_si256((__m256i*)srcPtr);
+                // 转换为double
+                __m256d pixels_d = _mm256_cvtepi32_pd(_mm256_cvtepu8_epi32(_mm256_extracti128_si256(pixels, 0)));
+                // 累加
+                sum = _mm256_add_pd(sum, _mm256_mul_pd(pixels_d, kernel));
             }
-
-            _mm_storeu_si128((__m128i*)(tempRow + x), sum);
+            // 存储结果
+            __m128i result = _mm_cvtps_epi32(_mm_cvtpd_ps(sum));
+            _mm_storeu_si128((__m128i*)(dstRow + x), _mm_packus_epi16(result, result));
         }
 
         // 处理剩余像素
-        for(int x = (src.cols/8)*8; x < src.cols; x++) {
-            int sum = 0;
-            for(int k = -halfKernel; k <= halfKernel; k++) {
-                sum += srcRow[x + k] * kernel1D[k + halfKernel];
+        for (int x = (src.cols/32)*32; x < src.cols; x++) {
+            double sum = 0.0;
+            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
+                const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky);
+                sum += srcPtr[x + halfKernel] * kernel1D[ky + halfKernel];
             }
-            tempRow[x] = static_cast<short>(sum >> 14);
-        }
-    }
-
-    // 垂直方向卷积
-    #pragma omp parallel for
-    for(int y = halfKernel; y < src.rows - halfKernel; y++) {
-        uchar* dstRow = dst.ptr<uchar>(y);
-
-        for(int x = 0; x < src.cols; x += 8) {
-            __m128i sum = _mm_setzero_si128();
-
-            for(int k = -halfKernel; k <= halfKernel; k++) {
-                const short* tempPtr = temp.ptr<short>(y + k) + x;
-                __m128i pixels = _mm_loadu_si128((__m128i*)tempPtr);
-                __m128i kernel_val = _mm_set1_epi16(kernel1D[k + halfKernel]);
-                sum = _mm_add_epi32(sum, _mm_madd_epi16(pixels, kernel_val));
-            }
-
-            // 转换回8位
-            sum = _mm_srai_epi32(sum, 14);
-            __m128i result = _mm_packus_epi16(_mm_packs_epi32(sum, sum), _mm_setzero_si128());
-            _mm_storel_epi64((__m128i*)(dstRow + x), result);
+            dstRow[x] = static_cast<uchar>(sum);
         }
     }
 
