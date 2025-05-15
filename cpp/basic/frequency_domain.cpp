@@ -1,4 +1,4 @@
-#include "frequency_domain.hpp"
+#include <basic/frequency_domain.hpp>
 #include <cmath>
 
 namespace ip101 {
@@ -7,18 +7,18 @@ using namespace cv;
 using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 constexpr double PI = 3.14159265358979323846;
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// 获取最优DFT尺寸
+// Get optimal DFT size
 int getOptimalDFTSize(int size) {
     int result = 1;
     while (result < size) {
@@ -27,12 +27,12 @@ int getOptimalDFTSize(int size) {
     return result;
 }
 
-// 计算复数的幅值
+// Calculate magnitude of complex number
 inline double magnitude(const complex<double>& c) {
     return abs(c);
 }
 
-// 计算复数的相位
+// Calculate phase of complex number
 inline double phase(const complex<double>& c) {
     return arg(c);
 }
@@ -42,7 +42,7 @@ inline double phase(const complex<double>& c) {
 void fourier_transform_manual(const Mat& src, Mat& dst, int flags) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -50,18 +50,18 @@ void fourier_transform_manual(const Mat& src, Mat& dst, int flags) {
         gray = src.clone();
     }
 
-    // 扩展图像到最优DFT尺寸
+    // Expand image to optimal DFT size
     Mat padded;
     int m = getOptimalDFTSize(gray.rows);
     int n = getOptimalDFTSize(gray.cols);
     copyMakeBorder(gray, padded, 0, m - gray.rows, 0, n - gray.cols,
                    BORDER_CONSTANT, Scalar::all(0));
 
-    // 创建复数矩阵
+    // Create complex matrix
     vector<vector<complex<double>>> complexImg(m, vector<complex<double>>(n));
 
-    // 转换为复数并乘以(-1)^(x+y)以移动频谱中心
-    #pragma omp parallel for collapse(2)
+    // Convert to complex and multiply by (-1)^(x+y) to center the spectrum
+    #pragma omp parallel for
     for (int y = 0; y < m; y++) {
         for (int x = 0; x < n; x++) {
             double val = padded.at<uchar>(y, x);
@@ -70,43 +70,43 @@ void fourier_transform_manual(const Mat& src, Mat& dst, int flags) {
         }
     }
 
-    // 行方向FFT
+    // Row-wise FFT
     #pragma omp parallel for
     for (int y = 0; y < m; y++) {
         fft(complexImg[y], n, flags == DFT_INVERSE);
     }
 
-    // 转置矩阵
+    // Transpose matrix
     vector<vector<complex<double>>> transposed(n, vector<complex<double>>(m));
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < m; y++) {
         for (int x = 0; x < n; x++) {
             transposed[x][y] = complexImg[y][x];
         }
     }
 
-    // 列方向FFT
+    // Column-wise FFT
     #pragma omp parallel for
     for (int x = 0; x < n; x++) {
         fft(transposed[x], m, flags == DFT_INVERSE);
     }
 
-    // 转回原始方向
-    #pragma omp parallel for collapse(2)
+    // Transpose back to original orientation
+    #pragma omp parallel for
     for (int y = 0; y < m; y++) {
         for (int x = 0; x < n; x++) {
             complexImg[y][x] = transposed[x][y];
         }
     }
 
-    // 创建输出矩阵
+    // Create output matrix
     if (flags == DFT_COMPLEX_OUTPUT) {
         vector<Mat> planes = {
             Mat::zeros(m, n, CV_64F),
             Mat::zeros(m, n, CV_64F)
         };
 
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < m; y++) {
             for (int x = 0; x < n; x++) {
                 planes[0].at<double>(y, x) = complexImg[y][x].real();
@@ -117,7 +117,7 @@ void fourier_transform_manual(const Mat& src, Mat& dst, int flags) {
         merge(planes, dst);
     } else {
         dst.create(m, n, CV_64F);
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < m; y++) {
             for (int x = 0; x < n; x++) {
                 dst.at<double>(y, x) = magnitude(complexImg[y][x]);
@@ -133,7 +133,7 @@ Mat create_frequency_filter(const Size& size,
     Point center(size.width/2, size.height/2);
     double radius2 = cutoff_freq * cutoff_freq;
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < size.height; y++) {
         for (int x = 0; x < size.width; x++) {
             double distance2 = pow(x - center.x, 2) + pow(y - center.y, 2);
@@ -143,8 +143,8 @@ Mat create_frequency_filter(const Size& size,
             } else if (filter_type == "highpass") {
                 filter.at<double>(y, x) = 1.0 - exp(-distance2 / (2 * radius2));
             } else if (filter_type == "bandpass") {
-                double r1 = radius2 * 0.5;  // 内圈半径
-                double r2 = radius2 * 2.0;  // 外圈半径
+                double r1 = radius2 * 0.5;  // Inner radius
+                double r2 = radius2 * 2.0;  // Outer radius
                 if (distance2 >= r1 && distance2 <= r2) {
                     filter.at<double>(y, x) = 1.0;
                 }
@@ -158,18 +158,18 @@ Mat create_frequency_filter(const Size& size,
 void frequency_filter_manual(const Mat& src, Mat& dst,
                            const string& filter_type,
                            double cutoff_freq) {
-    // 执行傅里叶变换
+    // Perform Fourier transform
     Mat dft_result;
     fourier_transform_manual(src, dft_result, DFT_COMPLEX_OUTPUT);
 
-    // 创建滤波器
+    // Create filter
     Mat filter = create_frequency_filter(dft_result.size(), cutoff_freq, filter_type);
 
-    // 应用滤波器
+    // Apply filter
     vector<Mat> planes;
     split(dft_result, planes);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < dft_result.rows; y++) {
         for (int x = 0; x < dft_result.cols; x++) {
             double f = filter.at<double>(y, x);
@@ -180,14 +180,14 @@ void frequency_filter_manual(const Mat& src, Mat& dst,
 
     merge(planes, dft_result);
 
-    // 执行逆傅里叶变换
+    // Perform inverse Fourier transform
     fourier_transform_manual(dft_result, dst, DFT_INVERSE);
 }
 
 void dct_transform_manual(const Mat& src, Mat& dst, int flags) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图并归一化
+    // Convert to grayscale and normalize
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -201,7 +201,7 @@ void dct_transform_manual(const Mat& src, Mat& dst, int flags) {
     dst.create(m, n, CV_64F);
 
     if (flags == DCT_FORWARD) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int u = 0; u < m; u++) {
             for (int v = 0; v < n; v++) {
                 double cu = (u == 0) ? 1.0/sqrt(2.0) : 1.0;
@@ -221,7 +221,7 @@ void dct_transform_manual(const Mat& src, Mat& dst, int flags) {
             }
         }
     } else {  // DCT_INVERSE
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int x = 0; x < m; x++) {
             for (int y = 0; y < n; y++) {
                 double sum = 0.0;
@@ -248,7 +248,7 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
                             int level) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -257,7 +257,7 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
     }
     gray.convertTo(gray, CV_64F);
 
-    // 创建小波滤波器
+    // Create wavelet filters
     vector<double> lowpass, highpass;
     if (wavelet_type == "haar") {
         lowpass = {1/sqrt(2), 1/sqrt(2)};
@@ -266,7 +266,7 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
         lowpass = {1/sqrt(2), 1/sqrt(2)};
         highpass = {-1/sqrt(2), 1/sqrt(2)};
     } else {
-        // 默认使用Haar小波
+        // Default to Haar wavelet
         lowpass = {1/sqrt(2), 1/sqrt(2)};
         highpass = {1/sqrt(2), -1/sqrt(2)};
     }
@@ -275,11 +275,11 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
     int rows = dst.rows;
     int cols = dst.cols;
 
-    // 多层小波分解
+    // Multi-level wavelet decomposition
     for (int l = 0; l < level; l++) {
         Mat temp = dst(Rect(0, 0, cols, rows)).clone();
 
-        // 行变换
+        // Row transformation
         #pragma omp parallel for
         for (int y = 0; y < rows; y++) {
             vector<double> row(cols);
@@ -287,9 +287,9 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
                 double v1 = temp.at<double>(y, x);
                 double v2 = temp.at<double>(y, x+1);
 
-                // 低频部分
+                // Low frequency part
                 row[x/2] = v1 * lowpass[0] + v2 * lowpass[1];
-                // 高频部分
+                // High frequency part
                 row[cols/2 + x/2] = v1 * highpass[0] + v2 * highpass[1];
             }
 
@@ -298,7 +298,7 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
             }
         }
 
-        // 列变换
+        // Column transformation
         temp = dst(Rect(0, 0, cols, rows)).clone();
         #pragma omp parallel for
         for (int x = 0; x < cols; x++) {
@@ -307,9 +307,9 @@ void wavelet_transform_manual(const Mat& src, Mat& dst,
                 double v1 = temp.at<double>(y, x);
                 double v2 = temp.at<double>(y+1, x);
 
-                // 低频部分
+                // Low frequency part
                 col[y/2] = v1 * lowpass[0] + v2 * lowpass[1];
-                // 高频部分
+                // High frequency part
                 col[rows/2 + y/2] = v1 * highpass[0] + v2 * highpass[1];
             }
 
@@ -329,11 +329,11 @@ void visualize_spectrum(const Mat& spectrum, Mat& dst) {
     vector<Mat> planes;
     split(spectrum, planes);
 
-    // 计算幅度谱
+    // Calculate magnitude spectrum
     Mat magnitude;
     magnitude.create(spectrum.size(), CV_64F);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < spectrum.rows; y++) {
         for (int x = 0; x < spectrum.cols; x++) {
             double real = planes[0].at<double>(y, x);
@@ -342,17 +342,17 @@ void visualize_spectrum(const Mat& spectrum, Mat& dst) {
         }
     }
 
-    // 归一化到0-255
+    // Normalize to 0-255
     normalize(magnitude, dst, 0, 255, NORM_MINMAX);
     dst.convertTo(dst, CV_8U);
 }
 
-// 辅助函数：一维FFT
+// Helper function: One-dimensional FFT
 void fft(vector<complex<double>>& data, int n, bool inverse) {
     int bits = 0;
     while ((1 << bits) < n) bits++;
 
-    // 位反转排序
+    // Bit-reversal permutation
     for (int i = 1; i < n; i++) {
         int j = 0;
         for (int k = 0; k < bits; k++) {
@@ -365,7 +365,7 @@ void fft(vector<complex<double>>& data, int n, bool inverse) {
         }
     }
 
-    // FFT计算
+    // FFT computation
     for (int len = 2; len <= n; len *= 2) {
         double angle = 2 * PI / len * (inverse ? 1 : -1);
         complex<double> wlen(cos(angle), sin(angle));

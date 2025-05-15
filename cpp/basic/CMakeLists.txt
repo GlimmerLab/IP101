@@ -1,42 +1,47 @@
 cmake_minimum_required(VERSION 3.10)
-project(edge_detection)
+project(ip101_basic)
 
-# 设置C++标准
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# 查找OpenCV包
-find_package(OpenCV REQUIRED)
-
-# 启用OpenMP
-find_package(OpenMP REQUIRED)
-if(OpenMP_CXX_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
-# 启用AVX2
-if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-endif()
-
-# 添加可执行文件
-add_executable(edge_detection_test
+# 源文件列表（排除测试文件）
+set(SOURCES
+    color_operations.cpp
     edge_detection.cpp
-    edge_detection_test.cpp
+    filtering.cpp
+    feature_extraction.cpp
+    frequency_domain.cpp
+    image_compression.cpp
+    image_enhancement.cpp
+    image_inpainting.cpp
+    image_matching.cpp
+    image_features.cpp
+    image_pyramid.cpp
+    image_quality.cpp
+    image_segmentation.cpp
+    image_transform.cpp
+    morphology.cpp
+    object_detection.cpp
+    super_resolution.cpp
+    texture_analysis.cpp
+    thinning.cpp
+    connected_components.cpp
 )
 
-# 链接OpenCV库
-target_link_libraries(edge_detection_test
-    PRIVATE
-    ${OpenCV_LIBS}
-    OpenMP::OpenMP_CXX
+# 创建静态库
+add_library(ip101_basic STATIC ${SOURCES})
+
+# 链接库和包含目录（使用父级CMake定义的变量）
+target_link_libraries(ip101_basic
+    PUBLIC
+    ${IP101_COMMON_LIBRARIES}
 )
 
 # 包含头文件目录
-target_include_directories(edge_detection_test
-    PRIVATE
-    ${OpenCV_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories(ip101_basic
+    PUBLIC
+    ${IP101_COMMON_INCLUDES}
+)
+
+# 安装选项
+install(TARGETS ip101_basic
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
 )

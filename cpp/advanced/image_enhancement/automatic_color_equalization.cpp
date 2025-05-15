@@ -26,7 +26,7 @@ void automatic_color_equalization(const cv::Mat& src, cv::Mat& dst,
     double gain = alpha * (255.0 / (stddev_L[0] + beta));
 
     // 使用OpenMP加速处理
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 0; i < L.rows; i++) {
         for(int j = 0; j < L.cols; j++) {
             float& pixel = L.at<uchar>(i, j);
@@ -43,7 +43,7 @@ void automatic_color_equalization(const cv::Mat& src, cv::Mat& dst,
     cv::cvtColor(lab, dst, cv::COLOR_Lab2BGR);
 
     // 确保结果在有效范围内
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 0; i < dst.rows; i++) {
         for(int j = 0; j < dst.cols; j++) {
             cv::Vec3b& pixel = dst.at<cv::Vec3b>(i, j);

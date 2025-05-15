@@ -1,4 +1,4 @@
-#include "edge_detection.hpp"
+#include <basic/edge_detection.hpp>
 #include <immintrin.h>  // 用于SIMD指令(AVX2)
 #include <omp.h>        // 用于OpenMP并行计算
 #include <cmath>
@@ -21,7 +21,7 @@ constexpr int BLOCK_SIZE = 16;    // 分块处理大小，用于优化缓存访�
  * @note 用于确保内存访问对齐到缓存行边界，提高内存访问效率
  */
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
 /**
@@ -103,17 +103,12 @@ inline void process_pixels_avx2(__m256i* dst, const __m256i* src, const float* k
 
 /**
  * @brief 微分滤波边缘检测实现
- * @details 使用简单的差分算子进行边缘检测，是最基础的边缘检测方法
- *          [-1, 0, 1]用于检测水平边缘
- *          [-1]
- *          [ 0]用于检测垂直边缘
- *          [ 1]
  */
-Mat differential_filter(const Mat& src, int kernel_size) {
+void differential_filter(const cv::Mat& src, cv::Mat& dst, int dx, int dy, int ksize) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
 
-    Mat result = Mat::zeros(src.size(), CV_8UC1);
-    int pad = kernel_size / 2;
+    dst = Mat::zeros(src.size(), CV_8UC1);
+    int pad = ksize / 2;
 
     // 边缘填充，使用边缘像素值填充
     Mat padded;
@@ -124,29 +119,22 @@ Mat differential_filter(const Mat& src, int kernel_size) {
     Mat kernel_y = (Mat_<float>(3, 3) << 0, -1, 0, 0, 0, 0, 0, 1, 0);
 
     // 使用OpenMP进行并行计算
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; ++y) {
         for (int x = 0; x < src.cols; ++x) {
-            process_block_simd(padded, result, kernel_x, kernel_y, y, x, kernel_size);
+            process_block_simd(padded, dst, kernel_x, kernel_y, y, x, ksize);
         }
     }
-
-    return result;
 }
 
 /**
  * @brief Sobel算子边缘检测实现
- * @details Sobel算子结合了高斯平滑和微分操作，对噪声具有更好的抵抗力
- *          x方向Sobel算子:       y方向Sobel算子:
- *          [-1  0  1]           [-1 -2 -1]
- *          [-2  0  2]           [ 0  0  0]
- *          [-1  0  1]           [ 1  2  1]
  */
-Mat sobel_filter(const Mat& src, int kernel_size) {
+void sobel_filter(const cv::Mat& src, cv::Mat& dst, int dx, int dy, int ksize, double scale) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
 
-    Mat result = Mat::zeros(src.size(), CV_8UC1);
-    int pad = kernel_size / 2;
+    dst = Mat::zeros(src.size(), CV_8UC1);
+    int pad = ksize / 2;
 
     // 边缘填充
     Mat padded;
@@ -157,29 +145,28 @@ Mat sobel_filter(const Mat& src, int kernel_size) {
     Mat kernel_y = (Mat_<float>(3, 3) << -1, -2, -1, 0, 0, 0, 1, 2, 1);
 
     // 使用OpenMP进行并行计算
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; ++y) {
         for (int x = 0; x < src.cols; ++x) {
-            process_block_simd(padded, result, kernel_x, kernel_y, y, x, kernel_size);
+            process_block_simd(padded, dst, kernel_x, kernel_y, y, x, ksize);
         }
     }
 
-    return result;
+    // 应用缩放因子
+    if (scale != 1.0) {
+        dst = dst * scale;
+    }
 }
 
 /**
  * @brief Prewitt算子边缘检测实现
- * @details Prewitt算子是另一种常用的边缘检测算子，比Sobel对噪声更敏感
- *          x方向Prewitt算子:     y方向Prewitt算子:
- *          [-1  0  1]           [-1 -1 -1]
- *          [-1  0  1]           [ 0  0  0]
- *          [-1  0  1]           [ 1  1  1]
  */
-Mat prewitt_filter(const Mat& src, int kernel_size) {
+void prewitt_filter(const cv::Mat& src, cv::Mat& dst, int dx, int dy) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
 
-    Mat result = Mat::zeros(src.size(), CV_8UC1);
-    int pad = kernel_size / 2;
+    dst = Mat::zeros(src.size(), CV_8UC1);
+    int ksize = 3; // Prewitt算子固定为3x3
+    int pad = ksize / 2;
 
     // 边缘填充
     Mat padded;
@@ -190,30 +177,22 @@ Mat prewitt_filter(const Mat& src, int kernel_size) {
     Mat kernel_y = (Mat_<float>(3, 3) << -1, -1, -1, 0, 0, 0, 1, 1, 1);
 
     // 使用OpenMP进行并行计算
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; ++y) {
         for (int x = 0; x < src.cols; ++x) {
-            process_block_simd(padded, result, kernel_x, kernel_y, y, x, kernel_size);
+            process_block_simd(padded, dst, kernel_x, kernel_y, y, x, ksize);
         }
     }
-
-    return result;
 }
 
 /**
  * @brief Laplacian算子边缘检测实现
- * @details Laplacian算子是一种二阶微分算子，可以检测图像中的突变点
- *          标准的Laplacian算子:
- *          [ 0  1  0]
- *          [ 1 -4  1]
- *          [ 0  1  0]
- * @note 由于是二阶微分，对噪声特别敏感，通常需要先进行高斯平滑
  */
-Mat laplacian_filter(const Mat& src, int kernel_size) {
+void laplacian_filter(const cv::Mat& src, cv::Mat& dst, int ksize, double scale) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
 
-    Mat result = Mat::zeros(src.size(), CV_8UC1);
-    int pad = kernel_size / 2;
+    dst = Mat::zeros(src.size(), CV_8UC1);
+    int pad = ksize / 2;
 
     // 边缘填充
     Mat padded;
@@ -221,120 +200,101 @@ Mat laplacian_filter(const Mat& src, int kernel_size) {
 
     // 定义Laplacian算子
     Mat kernel = (Mat_<float>(3, 3) << 0, 1, 0, 1, -4, 1, 0, 1, 0);
+    Mat kernel_x = kernel.clone(); // 为了兼容process_block_simd函数
+    Mat kernel_y = kernel.clone();
 
     // 使用OpenMP进行并行计算
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; ++y) {
         for (int x = 0; x < src.cols; ++x) {
             float sum = 0.0f;
 
-            // 使用AVX2进行并行计算
-            if (kernel_size == 3) {
-                __m256 sum_vec = _mm256_setzero_ps();
-
-                for (int ky = 0; ky < 3; ++ky) {
-                    for (int kx = 0; kx < 3; ++kx) {
-                        float val = padded.at<uchar>(y + ky, x + kx);
-                        float k_val = kernel.at<float>(ky, kx);
-                        sum_vec = _mm256_add_ps(sum_vec, _mm256_mul_ps(_mm256_set1_ps(val), _mm256_set1_ps(k_val)));
-                    }
-                }
-
-                // 水平相加
-                float sum_arr[8];
-                _mm256_store_ps(sum_arr, sum_vec);
-                for (int i = 0; i < 8; ++i) {
-                    sum += sum_arr[i];
-                }
-            } else {
-                // 对于非3x3的kernel使用普通实现
-                for (int ky = 0; ky < kernel_size; ++ky) {
-                    for (int kx = 0; kx < kernel_size; ++kx) {
-                        float val = padded.at<uchar>(y + ky, x + kx);
-                        sum += val * kernel.at<float>(ky, kx);
-                    }
+            // 对于非3x3的kernel使用普通实现
+            for (int ky = 0; ky < ksize; ++ky) {
+                for (int kx = 0; kx < ksize; ++kx) {
+                    float val = padded.at<uchar>(y + ky, x + kx);
+                    sum += val * kernel.at<float>(ky % 3, kx % 3); // 使用模运算确保索引在有效范围内
                 }
             }
 
             // 取绝对值并饱和到uchar范围
-            result.at<uchar>(y, x) = saturate_cast<uchar>(std::abs(sum));
+            dst.at<uchar>(y, x) = saturate_cast<uchar>(std::abs(sum) * scale);
         }
     }
-
-    return result;
 }
 
 /**
  * @brief 浮雕效果实现
- * @details 通过特殊的卷积核实现图像的浮雕效果
- *          浮雕效果算子:
- *          [ 2  0  0]
- *          [ 0 -1  0]
- *          [ 0  0 -1]
- * @param offset 偏移值，用于调整整体亮度，默认为128(中性灰)
  */
-Mat emboss_effect(const Mat& src, int kernel_size, int offset) {
+void emboss_effect(const cv::Mat& src, cv::Mat& dst, int direction) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
 
-    Mat result = Mat::zeros(src.size(), CV_8UC1);
-    int pad = kernel_size / 2;
+    dst = Mat::zeros(src.size(), CV_8UC1);
+    int ksize = 3; // 浮雕效果固定使用3x3卷积核
+    int pad = ksize / 2;
+    int offset = 128; // 默认偏移值
 
     // 边缘填充
     Mat padded;
     copyMakeBorder(src, padded, pad, pad, pad, pad, BORDER_REPLICATE);
 
-    // 定义浮雕算子
-    Mat kernel = (Mat_<float>(3, 3) << 2, 0, 0, 0, -1, 0, 0, 0, -1);
+    // 根据方向选择浮雕算子
+    Mat kernel;
+    switch (direction) {
+        case 0: // 默认方向（右下）
+            kernel = (Mat_<float>(3, 3) << 2, 0, 0, 0, -1, 0, 0, 0, -1);
+            break;
+        case 1: // 右
+            kernel = (Mat_<float>(3, 3) << 0, 0, 2, 0, -1, 0, 0, 0, -1);
+            break;
+        case 2: // 右上
+            kernel = (Mat_<float>(3, 3) << 0, 0, 2, 0, -1, 0, -1, 0, 0);
+            break;
+        case 3: // 上
+            kernel = (Mat_<float>(3, 3) << 0, 2, 0, 0, -1, 0, 0, -1, 0);
+            break;
+        case 4: // 左上
+            kernel = (Mat_<float>(3, 3) << 2, 0, 0, 0, -1, 0, 0, 0, -1);
+            kernel = kernel.t(); // 转置
+            break;
+        case 5: // 左
+            kernel = (Mat_<float>(3, 3) << 0, 0, -1, 0, -1, 0, 2, 0, 0);
+            break;
+        case 6: // 左下
+            kernel = (Mat_<float>(3, 3) << -1, 0, 0, 0, -1, 0, 0, 0, 2);
+            break;
+        case 7: // 下
+            kernel = (Mat_<float>(3, 3) << 0, -1, 0, 0, -1, 0, 0, 2, 0);
+            break;
+        default:
+            kernel = (Mat_<float>(3, 3) << 2, 0, 0, 0, -1, 0, 0, 0, -1);
+            break;
+    }
 
     // 使用OpenMP进行并行计算
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; ++y) {
         for (int x = 0; x < src.cols; ++x) {
             float sum = 0.0f;
 
-            // 使用AVX2进行并行计算
-            if (kernel_size == 3) {
-                __m256 sum_vec = _mm256_setzero_ps();
-
-                for (int ky = 0; ky < 3; ++ky) {
-                    for (int kx = 0; kx < 3; ++kx) {
-                        float val = padded.at<uchar>(y + ky, x + kx);
-                        float k_val = kernel.at<float>(ky, kx);
-                        sum_vec = _mm256_add_ps(sum_vec, _mm256_mul_ps(_mm256_set1_ps(val), _mm256_set1_ps(k_val)));
-                    }
-                }
-
-                // 水平相加
-                float sum_arr[8];
-                _mm256_store_ps(sum_arr, sum_vec);
-                for (int i = 0; i < 8; ++i) {
-                    sum += sum_arr[i];
-                }
-            } else {
-                // 对于非3x3的kernel使用普通实现
-                for (int ky = 0; ky < kernel_size; ++ky) {
-                    for (int kx = 0; kx < kernel_size; ++kx) {
-                        float val = padded.at<uchar>(y + ky, x + kx);
-                        sum += val * kernel.at<float>(ky, kx);
-                    }
+            // 计算卷积
+            for (int ky = 0; ky < ksize; ++ky) {
+                for (int kx = 0; kx < ksize; ++kx) {
+                    float val = padded.at<uchar>(y + ky, x + kx);
+                    sum += val * kernel.at<float>(ky, kx);
                 }
             }
 
             // 添加偏移并饱和到uchar范围
-            result.at<uchar>(y, x) = saturate_cast<uchar>(sum + offset);
+            dst.at<uchar>(y, x) = saturate_cast<uchar>(sum + offset);
         }
     }
-
-    return result;
 }
 
 /**
  * @brief 综合边缘检测实现
- * @details 根据指定的方法选择不同的边缘检测算子，并进行二值化处理
- * @param method 边缘检测方法："sobel", "prewitt", "laplacian"
- * @param threshold 二值化阈值，大于阈值的像素设为255，小于阈值的像素设为0
  */
-Mat edge_detection(const Mat& src, const std::string& method, int threshold) {
+void edge_detection(const cv::Mat& src, cv::Mat& dst, const std::string& method, double thresh_val) {
     CV_Assert(!src.empty());
 
     // 转换为灰度图
@@ -348,20 +308,17 @@ Mat edge_detection(const Mat& src, const std::string& method, int threshold) {
     // 根据选择的方法进行边缘检测
     Mat result;
     if (method == "sobel") {
-        result = sobel_filter(gray);
+        sobel_filter(gray, result, 1, 1, 3, 1.0); // dx=1, dy=1, ksize=3, scale=1.0
     } else if (method == "prewitt") {
-        result = prewitt_filter(gray);
+        prewitt_filter(gray, result, 1, 1); // dx=1, dy=1
     } else if (method == "laplacian") {
-        result = laplacian_filter(gray);
+        laplacian_filter(gray, result, 3, 1.0); // ksize=3, scale=1.0
     } else {
         throw std::invalid_argument("Unsupported method: " + method);
     }
 
     // 二值化处理
-    Mat binary;
-    threshold(result, binary, threshold, 255, THRESH_BINARY);
-
-    return binary;
+    threshold(result, dst, thresh_val, 255, THRESH_BINARY);
 }
 
 } // namespace ip101

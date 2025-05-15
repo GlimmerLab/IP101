@@ -1,35 +1,38 @@
-#include "image_enhancement.hpp"
+#include <basic/image_enhancement.hpp>
 #include <cmath>
+#include <vector>
 
 namespace ip101 {
 
 using namespace cv;
+using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// SIMD优化的直方图计算
+// SIMD optimized histogram calculation
 inline void calculate_histogram_simd(const uchar* src, int* hist, int width) {
     alignas(32) int local_hist[256] = {0};
 
     for (int x = 0; x < width; x += 32) {
         __m256i pixels = _mm256_loadu_si256((__m256i*)(src + x));
 
-        // 使用AVX2指令集处理32个像素
+        // Process 32 pixels with AVX2 instructions
         for (int i = 0; i < 32; i++) {
-            local_hist[_mm256_extract_epi8(pixels, i)]++;
+            uchar pixel_val = src[x + i];
+            local_hist[pixel_val]++;
         }
     }
 
-    // 累加到全局直方图
+    // Accumulate to global histogram
     for (int i = 0; i < 256; i++) {
         hist[i] += local_hist[i];
     }
@@ -105,17 +108,17 @@ void histogram_equalization(const Mat& src, Mat& dst,
 
     if (method == "global") {
         if (src.channels() == 1) {
-            // 单通道图像全局直方图均衡化
+            // Global histogram equalization for single-channel image
             Mat hist, cdf;
             calculate_histogram(src, hist);
             calculate_cdf(hist, cdf);
 
-            // 归一化CDF
+            // Normalize CDF
             double scale = 255.0 / (src.rows * src.cols);
 
             dst.create(src.size(), src.type());
 
-            #pragma omp parallel for collapse(2)
+            #pragma omp parallel for
             for (int y = 0; y < src.rows; y++) {
                 for (int x = 0; x < src.cols; x++) {
                     dst.at<uchar>(y, x) = saturate_cast<uchar>(
@@ -123,21 +126,21 @@ void histogram_equalization(const Mat& src, Mat& dst,
                 }
             }
         } else {
-            // 转换到HSV空间进行处理
+            // Convert to HSV space for processing
             Mat hsv;
             cvtColor(src, hsv, COLOR_BGR2HSV);
 
             vector<Mat> channels;
             split(hsv, channels);
 
-            // 仅对V通道进行均衡化
+            // Only equalize the V channel
             Mat hist, cdf;
             calculate_histogram(channels[2], hist);
             calculate_cdf(hist, cdf);
 
             double scale = 255.0 / (src.rows * src.cols);
 
-            #pragma omp parallel for collapse(2)
+            #pragma omp parallel for
             for (int y = 0; y < src.rows; y++) {
                 for (int x = 0; x < src.cols; x++) {
                     channels[2].at<uchar>(y, x) = saturate_cast<uchar>(
@@ -159,48 +162,48 @@ void histogram_equalization(const Mat& src, Mat& dst,
 
 void local_histogram_equalization(const Mat& src, Mat& dst, int window_size) {
     CV_Assert(!src.empty());
-    CV_Assert(window_size % 2 == 1);  // 确保窗口大小为奇数
+    CV_Assert(window_size % 2 == 1);  // Ensure window size is odd
 
     dst.create(src.size(), src.type());
     int radius = window_size / 2;
 
-    // 处理边界
+    // Handle boundaries
     Mat padded;
     copyMakeBorder(src, padded, radius, radius, radius, radius, BORDER_REFLECT);
 
     if (src.channels() == 1) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
-                // 提取局部窗口
+                // Extract local window
                 Mat window = padded(
                     Range(y, y + window_size),
                     Range(x, x + window_size)
                 );
 
-                // 计算局部直方图和CDF
+                // Calculate local histogram and CDF
                 Mat hist, cdf;
                 calculate_histogram(window, hist);
                 calculate_cdf(hist, cdf);
 
-                // 归一化CDF
+                // Normalize CDF
                 double scale = 255.0 / (window_size * window_size);
                 dst.at<uchar>(y, x) = saturate_cast<uchar>(
                     cdf.at<int>(src.at<uchar>(y, x)) * scale);
             }
         }
     } else {
-        // 转换到HSV空间
+        // Convert to HSV space
         Mat hsv;
         cvtColor(src, hsv, COLOR_BGR2HSV);
         vector<Mat> channels;
         split(hsv, channels);
 
-        // 对V通道进行局部直方图均衡化
+        // Apply local histogram equalization to V channel
         Mat v_padded;
         copyMakeBorder(channels[2], v_padded, radius, radius, radius, radius, BORDER_REFLECT);
 
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 Mat window = v_padded(
@@ -229,17 +232,17 @@ void clahe(const Mat& src, Mat& dst, double clip_limit, Size grid_size) {
     if (src.channels() == 1) {
         dst.create(src.size(), src.type());
 
-        // 计算每个网格的大小
+        // Calculate grid size
         int grid_width = src.cols / grid_size.width;
         int grid_height = src.rows / grid_size.height;
 
-        // 为每个网格计算直方图
+        // Calculate histogram for each grid
         vector<vector<Mat>> grid_hists(grid_size.height, vector<Mat>(grid_size.width));
 
         #pragma omp parallel for collapse(2)
         for (int gy = 0; gy < grid_size.height; gy++) {
             for (int gx = 0; gx < grid_size.width; gx++) {
-                // 提取网格区域
+                // Extract grid region
                 int y0 = gy * grid_height;
                 int x0 = gx * grid_width;
                 int y1 = (gy == grid_size.height - 1) ? src.rows : y0 + grid_height;
@@ -247,10 +250,10 @@ void clahe(const Mat& src, Mat& dst, double clip_limit, Size grid_size) {
 
                 Mat grid = src(Range(y0, y1), Range(x0, x1));
 
-                // 计算直方图
+                // Calculate histogram
                 calculate_histogram(grid, grid_hists[gy][gx]);
 
-                // 应用对比度限制
+                // Apply contrast limit
                 int clip = static_cast<int>(clip_limit * grid_width * grid_height / 256);
                 if (clip > 0) {
                     int* hist_data = grid_hists[gy][gx].ptr<int>(0);
@@ -262,7 +265,7 @@ void clahe(const Mat& src, Mat& dst, double clip_limit, Size grid_size) {
                         }
                     }
 
-                    // 重新分配超出的部分
+                    // Redistribute excess
                     int redistrib = excess / 256;
                     int mod = excess % 256;
                     for (int i = 0; i < 256; i++) {
@@ -273,48 +276,54 @@ void clahe(const Mat& src, Mat& dst, double clip_limit, Size grid_size) {
             }
         }
 
-        // 对每个像素进行双线性插值
-        #pragma omp parallel for collapse(2)
+        // Create CDFs for each grid
+        vector<vector<Mat>> grid_cdfs(grid_size.height, vector<Mat>(grid_size.width));
+        for (int gy = 0; gy < grid_size.height; gy++) {
+            for (int gx = 0; gx < grid_size.width; gx++) {
+                calculate_cdf(grid_hists[gy][gx], grid_cdfs[gy][gx]);
+            }
+        }
+
+        // Bilinear interpolation for each pixel
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
-                // 计算像素所在的网格位置和权重
+                // Calculate grid position and weights
                 float gx = (x * grid_size.width) / static_cast<float>(src.cols) - 0.5f;
                 float gy = (y * grid_size.height) / static_cast<float>(src.rows) - 0.5f;
 
-                int gx0 = max(0, min(grid_size.width - 1, static_cast<int>(floor(gx))));
-                int gy0 = max(0, min(grid_size.height - 1, static_cast<int>(floor(gy))));
-                int gx1 = min(grid_size.width - 1, gx0 + 1);
-                int gy1 = min(grid_size.height - 1, gy0 + 1);
+                int gx0 = std::max(0, std::min(grid_size.width - 1, static_cast<int>(floor(gx))));
+                int gy0 = std::max(0, std::min(grid_size.height - 1, static_cast<int>(floor(gy))));
+                int gx1 = std::min(grid_size.width - 1, gx0 + 1);
+                int gy1 = std::min(grid_size.height - 1, gy0 + 1);
 
                 float wx = gx - gx0;
                 float wy = gy - gy0;
 
-                // 获取四个相邻网格的CDF
-                vector<Mat> cdfs(4);
-                calculate_cdf(grid_hists[gy0][gx0], cdfs[0]);
-                calculate_cdf(grid_hists[gy0][gx1], cdfs[1]);
-                calculate_cdf(grid_hists[gy1][gx0], cdfs[2]);
-                calculate_cdf(grid_hists[gy1][gx1], cdfs[3]);
-
-                // 双线性插值
+                // Get pixel value
                 uchar pixel = src.at<uchar>(y, x);
-                float val = (1 - wy) * ((1 - wx) * cdfs[0].at<int>(pixel) +
-                                      wx * cdfs[1].at<int>(pixel)) +
-                           wy * ((1 - wx) * cdfs[2].at<int>(pixel) +
-                                wx * cdfs[3].at<int>(pixel));
 
-                // 归一化
+                // Bilinear interpolation
+                float val00 = grid_cdfs[gy0][gx0].at<int>(pixel);
+                float val01 = grid_cdfs[gy0][gx1].at<int>(pixel);
+                float val10 = grid_cdfs[gy1][gx0].at<int>(pixel);
+                float val11 = grid_cdfs[gy1][gx1].at<int>(pixel);
+
+                float val = (1 - wy) * ((1 - wx) * val00 + wx * val01) +
+                           wy * ((1 - wx) * val10 + wx * val11);
+
+                // Normalize
                 dst.at<uchar>(y, x) = saturate_cast<uchar>(val * 255.0f / (grid_width * grid_height));
             }
         }
     } else {
-        // 转换到HSV空间
+        // Convert to HSV space
         Mat hsv;
         cvtColor(src, hsv, COLOR_BGR2HSV);
         vector<Mat> channels;
         split(hsv, channels);
 
-        // 对V通道应用CLAHE
+        // Apply CLAHE to V channel
         Mat v_dst;
         clahe(channels[2], v_dst, clip_limit, grid_size);
         v_dst.copyTo(channels[2]);
@@ -327,7 +336,7 @@ void clahe(const Mat& src, Mat& dst, double clip_limit, Size grid_size) {
 void gamma_correction(const Mat& src, Mat& dst, double gamma) {
     CV_Assert(!src.empty());
 
-    // 创建查找表
+    // Create lookup table
     uchar lut[256];
     for (int i = 0; i < 256; i++) {
         lut[i] = saturate_cast<uchar>(pow(i / 255.0, gamma) * 255.0);
@@ -336,14 +345,14 @@ void gamma_correction(const Mat& src, Mat& dst, double gamma) {
     dst.create(src.size(), src.type());
 
     if (src.channels() == 1) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 dst.at<uchar>(y, x) = lut[src.at<uchar>(y, x)];
             }
         }
     } else {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 const Vec3b& pixel = src.at<Vec3b>(y, x);
@@ -357,7 +366,7 @@ void contrast_stretching(const Mat& src, Mat& dst,
                         double min_out, double max_out) {
     CV_Assert(!src.empty());
 
-    // 找到输入图像的最小值和最大值
+    // Find min and max values of input image
     double min_val, max_val;
     minMaxLoc(src, &min_val, &max_val);
 
@@ -365,7 +374,7 @@ void contrast_stretching(const Mat& src, Mat& dst,
     double scale = (max_out - min_out) / (max_val - min_val);
 
     if (src.channels() == 1) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 dst.at<uchar>(y, x) = saturate_cast<uchar>(
@@ -373,7 +382,7 @@ void contrast_stretching(const Mat& src, Mat& dst,
             }
         }
     } else {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 const Vec3b& pixel = src.at<Vec3b>(y, x);
@@ -393,14 +402,14 @@ void brightness_adjustment(const Mat& src, Mat& dst, double beta) {
     dst.create(src.size(), src.type());
 
     if (src.channels() == 1) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 dst.at<uchar>(y, x) = saturate_cast<uchar>(src.at<uchar>(y, x) + beta);
             }
         }
     } else {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 const Vec3b& pixel = src.at<Vec3b>(y, x);
@@ -417,15 +426,15 @@ void brightness_adjustment(const Mat& src, Mat& dst, double beta) {
 void saturation_adjustment(const Mat& src, Mat& dst, double saturation) {
     CV_Assert(!src.empty() && src.type() == CV_8UC3);
 
-    // 转换到HSV空间
+    // Convert to HSV space
     Mat hsv;
     cvtColor(src, hsv, COLOR_BGR2HSV);
 
     vector<Mat> channels;
     split(hsv, channels);
 
-    // 调整饱和度通道
-    #pragma omp parallel for collapse(2)
+    // Adjust saturation channel
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; y++) {
         for (int x = 0; x < src.cols; x++) {
             channels[1].at<uchar>(y, x) = saturate_cast<uchar>(

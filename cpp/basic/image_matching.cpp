@@ -1,4 +1,4 @@
-#include "image_matching.hpp"
+#include <basic/image_matching.hpp>
 #include <cmath>
 
 namespace ip101 {
@@ -7,17 +7,17 @@ using namespace cv;
 using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// 计算SSD的SIMD优化版本
+// SIMD optimized version of SSD computation
 void compute_ssd_simd(const Mat& src, const Mat& templ, Mat& result) {
     int h = templ.rows;
     int w = templ.cols;
@@ -27,7 +27,7 @@ void compute_ssd_simd(const Mat& src, const Mat& templ, Mat& result) {
     result.create(H-h+1, W-w+1, CV_32F);
     result = Scalar(0);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < H-h+1; y++) {
         for (int x = 0; x < W-w+1; x++) {
             float sum = 0;
@@ -35,7 +35,7 @@ void compute_ssd_simd(const Mat& src, const Mat& templ, Mat& result) {
                 const uchar* src_ptr = src.ptr<uchar>(y+i) + x;
                 const uchar* templ_ptr = templ.ptr<uchar>(i);
 
-                // 使用AVX2进行向量化计算
+                // Use AVX2 for vectorized computation
                 for (int j = 0; j < w; j += 8) {
                     __m256i src_vec = _mm256_cvtepu8_epi32(_mm_loadl_epi64((__m128i*)(src_ptr+j)));
                     __m256i templ_vec = _mm256_cvtepu8_epi32(_mm_loadl_epi64((__m128i*)(templ_ptr+j)));
@@ -54,7 +54,7 @@ void compute_ssd_simd(const Mat& src, const Mat& templ, Mat& result) {
     }
 }
 
-// 计算SAD的SIMD优化版本
+// SIMD optimized version of SAD computation
 void compute_sad_simd(const Mat& src, const Mat& templ, Mat& result) {
     int h = templ.rows;
     int w = templ.cols;
@@ -64,7 +64,7 @@ void compute_sad_simd(const Mat& src, const Mat& templ, Mat& result) {
     result.create(H-h+1, W-w+1, CV_32F);
     result = Scalar(0);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < H-h+1; y++) {
         for (int x = 0; x < W-w+1; x++) {
             float sum = 0;
@@ -72,7 +72,7 @@ void compute_sad_simd(const Mat& src, const Mat& templ, Mat& result) {
                 const uchar* src_ptr = src.ptr<uchar>(y+i) + x;
                 const uchar* templ_ptr = templ.ptr<uchar>(i);
 
-                // 使用AVX2进行向量化计算
+                // Use AVX2 for vectorized computation
                 for (int j = 0; j < w; j += 8) {
                     __m256i src_vec = _mm256_cvtepu8_epi32(_mm_loadl_epi64((__m128i*)(src_ptr+j)));
                     __m256i templ_vec = _mm256_cvtepu8_epi32(_mm_loadl_epi64((__m128i*)(templ_ptr+j)));
@@ -90,7 +90,7 @@ void compute_sad_simd(const Mat& src, const Mat& templ, Mat& result) {
     }
 }
 
-// 计算NCC的SIMD优化版本
+// SIMD optimized version of NCC computation
 void compute_ncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     int h = templ.rows;
     int w = templ.cols;
@@ -100,7 +100,7 @@ void compute_ncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     result.create(H-h+1, W-w+1, CV_32F);
     result = Scalar(0);
 
-    // 计算模板的范数
+    // Calculate template norm
     float templ_norm = 0;
     for (int i = 0; i < h; i++) {
         const uchar* templ_ptr = templ.ptr<uchar>(i);
@@ -110,7 +110,7 @@ void compute_ncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     }
     templ_norm = sqrt(templ_norm);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < H-h+1; y++) {
         for (int x = 0; x < W-w+1; x++) {
             float window_norm = 0;
@@ -120,12 +120,12 @@ void compute_ncc_simd(const Mat& src, const Mat& templ, Mat& result) {
                 const uchar* src_ptr = src.ptr<uchar>(y+i) + x;
                 const uchar* templ_ptr = templ.ptr<uchar>(i);
 
-                // 使用AVX2进行向量化计算
+                // Use AVX2 for vectorized computation
                 for (int j = 0; j < w; j += 8) {
                     __m256i src_vec = _mm256_cvtepu8_epi32(_mm_loadl_epi64((__m128i*)(src_ptr+j)));
                     __m256i templ_vec = _mm256_cvtepu8_epi32(_mm_loadl_epi64((__m128i*)(templ_ptr+j)));
 
-                    // 计算点积
+                    // Calculate dot product
                     __m256i product = _mm256_mullo_epi32(src_vec, templ_vec);
                     float temp[8];
                     _mm256_storeu_ps(temp, _mm256_cvtepi32_ps(product));
@@ -133,7 +133,7 @@ void compute_ncc_simd(const Mat& src, const Mat& templ, Mat& result) {
                         dot_product += temp[k];
                     }
 
-                    // 计算窗口范数
+                    // Calculate window norm
                     __m256i square = _mm256_mullo_epi32(src_vec, src_vec);
                     _mm256_storeu_ps(temp, _mm256_cvtepi32_ps(square));
                     for (int k = 0; k < 8 && j+k < w; k++) {
@@ -150,7 +150,7 @@ void compute_ncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     }
 }
 
-// 计算ZNCC的SIMD优化版本
+// SIMD optimized version of ZNCC computation
 void compute_zncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     int h = templ.rows;
     int w = templ.cols;
@@ -160,7 +160,7 @@ void compute_zncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     result.create(H-h+1, W-w+1, CV_32F);
     result = Scalar(0);
 
-    // 计算模板的均值和标准差
+    // Calculate template mean and standard deviation
     float templ_mean = 0;
     float templ_std = 0;
     for (int i = 0; i < h; i++) {
@@ -180,10 +180,10 @@ void compute_zncc_simd(const Mat& src, const Mat& templ, Mat& result) {
     }
     templ_std = sqrt(templ_std / (h * w));
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < H-h+1; y++) {
         for (int x = 0; x < W-w+1; x++) {
-            // 计算窗口的均值和标准差
+            // Calculate window mean and standard deviation
             float window_mean = 0;
             float window_std = 0;
             float zncc = 0;
@@ -252,20 +252,20 @@ void feature_point_matching(const Mat& src1, const Mat& src2,
     CV_Assert(!src1.empty() && !src2.empty());
     CV_Assert(src1.type() == CV_8UC1 && src2.type() == CV_8UC1);
 
-    // 使用SIFT特征检测器和描述子
+    // Use SIFT feature detector and descriptor
     Ptr<Feature2D> sift = SIFT::create();
     Mat descriptors1, descriptors2;
 
-    // 检测特征点并计算描述子
+    // Detect keypoints and compute descriptors
     sift->detectAndCompute(src1, noArray(), keypoints1, descriptors1);
     sift->detectAndCompute(src2, noArray(), keypoints2, descriptors2);
 
-    // 使用FLANN匹配器进行特征匹配
+    // Use FLANN matcher for feature matching
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
     vector<vector<DMatch>> knn_matches;
     matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
 
-    // 使用Lowe's ratio test筛选好的匹配
+    // Filter good matches using Lowe's ratio test
     const float ratio_thresh = 0.7f;
     matches.clear();
     for (size_t i = 0; i < knn_matches.size(); i++) {

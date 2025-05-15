@@ -1,103 +1,64 @@
 cmake_minimum_required(VERSION 3.10)
-project(ImageProcessing VERSION 1.0.0 LANGUAGES CXX)
+project(IP101)
 
 # 设置C++标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# 设置编译选项
-option(USE_AVX2 "Enable AVX2 optimization" ON)
-option(USE_SSE4 "Enable SSE4 optimization" ON)
-option(USE_OPENMP "Enable OpenMP parallel optimization" ON)
-option(BUILD_TESTS "Build test programs" OFF)
-option(BUILD_EXAMPLES "Build example programs" ON)
+# 手动设置OpenCV路径（可选）
+# 方法1：直接在此处设置路径（取消注释并修改为您的OpenCV路径）
+set(OpenCV_DIR "E:/Opencv4.11.0/opencv/build")    # Windows示例路径
+# set(OpenCV_DIR "/usr/local/opencv4") # Linux示例路径
 
-# 查找OpenCV
+# 方法2：使用命令行参数设置
+# 使用方式：cmake -DOPENCV_DIR=/path/to/opencv/build ..
+# if(DEFINED OPENCV_DIR)
+#     set(OpenCV_DIR ${OPENCV_DIR})
+#     message(STATUS "Using custom OpenCV path: ${OpenCV_DIR}")
+# endif()
+
+# 查找包
 find_package(OpenCV REQUIRED)
+find_package(OpenMP REQUIRED)
 
-# 添加OpenMP支持
-if(USE_OPENMP)
-    find_package(OpenMP REQUIRED)
-    if(OpenMP_CXX_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    endif()
+# 启用OpenMP
+if(OpenMP_CXX_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-# 添加SIMD优化选项
-if(USE_AVX2)
-    if(MSVC)
-        add_compile_options(/arch:AVX2)
-    else()
-        add_compile_options(-mavx2)
-    endif()
+# 启用AVX2
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
 endif()
 
-if(USE_SSE4)
-    if(MSVC)
-        add_compile_options(/arch:SSE4)
-    else()
-        add_compile_options(-msse4)
-    endif()
-endif()
-
-# 添加源文件
-set(SOURCES
-    cpp/basic/color_operations.cpp
-    cpp/basic/edge_detection.cpp
-    cpp/basic/filtering.cpp
-    cpp/basic/image_transform.cpp
+# 设置公共编译选项和包含目录（用于所有子项目）
+set(IP101_COMMON_COMPILE_OPTIONS "${OpenMP_CXX_FLAGS}")
+set(IP101_COMMON_INCLUDES
+    ${CMAKE_SOURCE_DIR}/include
+    ${OpenCV_INCLUDE_DIRS}
+)
+set(IP101_COMMON_LIBRARIES
+    ${OpenCV_LIBS}
+    OpenMP::OpenMP_CXX
 )
 
-# 添加头文件
-set(HEADERS
-    cpp/basic/color_operations.h
-    cpp/basic/edge_detection.h
-    cpp/basic/filtering.h
-    cpp/basic/image_transform.h
+# 设置包含目录
+include_directories(${IP101_COMMON_INCLUDES})
+
+# 添加子目录
+add_subdirectory(cpp/basic)
+add_subdirectory(examples/basic)
+
+# 安装头文件
+install(DIRECTORY include/
+    DESTINATION include
 )
 
-# 创建库
-add_library(image_processing STATIC ${SOURCES} ${HEADERS})
-
-# 链接库
-target_link_libraries(image_processing PRIVATE ${OpenCV_LIBS})
-
-# 添加包含目录
-target_include_directories(image_processing
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp
-        ${OpenCV_INCLUDE_DIRS}
-)
-
-# 安装规则
-install(TARGETS image_processing
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin
-    INCLUDES DESTINATION include
-)
-
-install(FILES ${HEADERS}
-    DESTINATION include/image_processing
-)
-
-# 构建测试程序
-if(BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
-
-# 构建示例程序
-if(BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
-# 添加文档目标
-add_custom_target(docs
-    COMMAND mkdir -p docs/html
-    COMMAND doxygen Doxyfile
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Generating documentation"
-)
+# 输出信息
+message(STATUS "OpenCV版本: ${OpenCV_VERSION}")
+message(STATUS "使用的编译器: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "编译器版本: ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "C++标准: ${CMAKE_CXX_STANDARD}")
+message(STATUS "构建类型: ${CMAKE_BUILD_TYPE}")

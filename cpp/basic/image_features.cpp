@@ -1,4 +1,4 @@
-#include "image_features.hpp"
+#include <basic/image_features.hpp>
 #include <cmath>
 
 namespace ip101 {
@@ -7,18 +7,19 @@ using namespace cv;
 using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
-constexpr double PI = 3.14159265358979323846;
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
+constexpr float PI_F = 3.14159265358979323846f;  // PI as float
+constexpr double PI = 3.14159265358979323846;    // PI as double
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// 计算梯度
+// Calculate gradient
 void compute_gradient(const Mat& src, Mat& magnitude, Mat& angle) {
     Mat grad_x, grad_y;
     Sobel(src, grad_x, CV_32F, 1, 0, 3);
@@ -27,7 +28,7 @@ void compute_gradient(const Mat& src, Mat& magnitude, Mat& angle) {
     magnitude.create(src.size(), CV_32F);
     angle.create(src.size(), CV_32F);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; y++) {
         for (int x = 0; x < src.cols; x++) {
             float gx = grad_x.at<float>(y, x);
@@ -47,7 +48,7 @@ void hog_features(const Mat& src,
                  int bin_num) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -55,29 +56,29 @@ void hog_features(const Mat& src,
         gray = src.clone();
     }
 
-    // 计算梯度
+    // Calculate gradient
     Mat magnitude, angle;
     compute_gradient(gray, magnitude, angle);
 
-    // 计算cell直方图
+    // Calculate cell histograms
     int cell_rows = gray.rows / cell_size;
     int cell_cols = gray.cols / cell_size;
     vector<vector<vector<float>>> cell_hists(cell_rows,
         vector<vector<float>>(cell_cols, vector<float>(bin_num, 0)));
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < gray.rows - cell_size; y += cell_size) {
         for (int x = 0; x < gray.cols - cell_size; x += cell_size) {
             vector<float> hist(bin_num, 0);
 
-            // 计算cell内的梯度直方图
+            // Calculate gradient histogram within cell
             for (int cy = 0; cy < cell_size; cy++) {
                 for (int cx = 0; cx < cell_size; cx++) {
                     float mag = magnitude.at<float>(y + cy, x + cx);
                     float ang = angle.at<float>(y + cy, x + cx);
-                    if (ang < 0) ang += PI;
+                    if (ang < 0) ang += static_cast<float>(PI);
 
-                    float bin_size = PI / bin_num;
+                    float bin_size = static_cast<float>(PI) / static_cast<float>(bin_num);
                     int bin = static_cast<int>(ang / bin_size);
                     if (bin >= bin_num) bin = bin_num - 1;
 
@@ -89,14 +90,14 @@ void hog_features(const Mat& src,
         }
     }
 
-    // 计算block特征
+    // Calculate block features
     features.clear();
     for (int y = 0; y <= cell_rows - block_size; y++) {
         for (int x = 0; x <= cell_cols - block_size; x++) {
             vector<float> block_feat;
-            float norm = 0;
+            float norm = 0.0f;
 
-            // 收集block内的所有cell直方图
+            // Collect all cell histograms within the block
             for (int by = 0; by < block_size; by++) {
                 for (int bx = 0; bx < block_size; bx++) {
                     const auto& hist = cell_hists[y + by][x + bx];
@@ -107,8 +108,8 @@ void hog_features(const Mat& src,
                 }
             }
 
-            // L2归一化
-            norm = sqrt(norm + 1e-6);
+            // L2 normalization
+            norm = static_cast<float>(sqrt(norm + 1e-6));
             for (float& val : block_feat) {
                 val /= norm;
             }
@@ -124,7 +125,7 @@ void lbp_features(const Mat& src,
                  int neighbors) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -134,7 +135,7 @@ void lbp_features(const Mat& src,
 
     dst = Mat::zeros(gray.size(), CV_8U);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = radius; y < gray.rows - radius; y++) {
         for (int x = radius; x < gray.cols - radius; x++) {
             uchar center = gray.at<uchar>(y, x);
@@ -159,7 +160,7 @@ void haar_features(const Mat& src,
                   Size max_size) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -167,46 +168,46 @@ void haar_features(const Mat& src,
         gray = src.clone();
     }
 
-    // 计算积分图
+    // Calculate integral image
     Mat integral;
     compute_integral_image(gray, integral);
 
     features.clear();
 
-    // 计算不同尺寸的Haar特征
+    // Calculate Haar features of different sizes
     for (int h = min_size.height; h <= max_size.height; h += 4) {
         for (int w = min_size.width; w <= max_size.width; w += 4) {
-            // 垂直边缘特征
+            // Vertical edge features
             for (int y = 0; y <= gray.rows - h; y++) {
                 for (int x = 0; x <= gray.cols - w; x++) {
                     int w2 = w / 2;
-                    float left = integral.at<double>(y + h, x + w2) +
-                               integral.at<double>(y, x) -
-                               integral.at<double>(y, x + w2) -
-                               integral.at<double>(y + h, x);
+                    float left = static_cast<float>(integral.at<double>(y + h, x + w2) +
+                                                  integral.at<double>(y, x) -
+                                                  integral.at<double>(y, x + w2) -
+                                                  integral.at<double>(y + h, x));
 
-                    float right = integral.at<double>(y + h, x + w) +
-                                integral.at<double>(y, x + w2) -
-                                integral.at<double>(y, x + w) -
-                                integral.at<double>(y + h, x + w2);
+                    float right = static_cast<float>(integral.at<double>(y + h, x + w) +
+                                                   integral.at<double>(y, x + w2) -
+                                                   integral.at<double>(y, x + w) -
+                                                   integral.at<double>(y + h, x + w2));
 
                     features.push_back(right - left);
                 }
             }
 
-            // 水平边缘特征
+            // Horizontal edge features
             for (int y = 0; y <= gray.rows - h; y++) {
                 for (int x = 0; x <= gray.cols - w; x++) {
                     int h2 = h / 2;
-                    float top = integral.at<double>(y + h2, x + w) +
-                              integral.at<double>(y, x) -
-                              integral.at<double>(y, x + w) -
-                              integral.at<double>(y + h2, x);
+                    float top = static_cast<float>(integral.at<double>(y + h2, x + w) +
+                                                 integral.at<double>(y, x) -
+                                                 integral.at<double>(y, x + w) -
+                                                 integral.at<double>(y + h2, x));
 
-                    float bottom = integral.at<double>(y + h, x + w) +
-                                 integral.at<double>(y + h2, x) -
-                                 integral.at<double>(y + h2, x + w) -
-                                 integral.at<double>(y + h, x);
+                    float bottom = static_cast<float>(integral.at<double>(y + h, x + w) +
+                                                    integral.at<double>(y + h2, x) -
+                                                    integral.at<double>(y + h2, x + w) -
+                                                    integral.at<double>(y + h, x));
 
                     features.push_back(bottom - top);
                 }
@@ -241,7 +242,7 @@ vector<Mat> create_gabor_filters(int scales,
                     double wave = cos(2 * PI * x_theta / lambda + psi);
 
                     kernel.at<float>(y + size.height/2, x + size.width/2) =
-                        gaussian * wave;
+                        static_cast<float>(gaussian * wave);
                 }
             }
 
@@ -261,7 +262,7 @@ void gabor_features(const Mat& src,
                    int orientations) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -270,22 +271,22 @@ void gabor_features(const Mat& src,
     }
     gray.convertTo(gray, CV_32F);
 
-    // 创建Gabor滤波器组
+    // Create Gabor filter bank
     vector<Mat> filters = create_gabor_filters(scales, orientations);
 
     features.clear();
 
-    // 应用滤波器并提取特征
+    // Apply filters and extract features
     for (const Mat& filter : filters) {
         Mat response;
         filter2D(gray, response, CV_32F, filter);
 
-        // 计算响应的统计特征
+        // Calculate statistical features of response
         Scalar mean, stddev;
         meanStdDev(response, mean, stddev);
 
-        features.push_back(mean[0]);
-        features.push_back(stddev[0]);
+        features.push_back(static_cast<float>(mean[0]));
+        features.push_back(static_cast<float>(stddev[0]));
     }
 }
 
@@ -294,7 +295,7 @@ void color_histogram(const Mat& src,
                     const vector<int>& bins) {
     CV_Assert(!src.empty() && src.channels() == 3);
 
-    // 计算每个通道的直方图范围
+    // Calculate histogram ranges for each channel
     vector<float> ranges[] = {
         vector<float>(bins[0] + 1),
         vector<float>(bins[1] + 1),
@@ -302,25 +303,25 @@ void color_histogram(const Mat& src,
     };
 
     for (int i = 0; i < 3; i++) {
-        float step = 256.0f / bins[i];
+        float step = 256.0f / static_cast<float>(bins[i]);
         for (int j = 0; j <= bins[i]; j++) {
-            ranges[i][j] = j * step;
+            ranges[i][j] = static_cast<float>(j) * step;
         }
     }
 
-    // 分离通道
+    // Split channels
     vector<Mat> channels;
     split(src, channels);
 
-    // 计算3D直方图
+    // Calculate 3D histogram
     int dims[] = {bins[0], bins[1], bins[2]};
     hist = Mat::zeros(3, dims, CV_32F);
 
-    #pragma omp parallel for collapse(3)
+    #pragma omp parallel for
     for (int b = 0; b < bins[0]; b++) {
         for (int g = 0; g < bins[1]; g++) {
             for (int r = 0; r < bins[2]; r++) {
-                float count = 0;
+                float count = 0.0f;
 
                 for (int y = 0; y < src.rows; y++) {
                     for (int x = 0; x < src.cols; x++) {
@@ -331,7 +332,7 @@ void color_histogram(const Mat& src,
                         if (b_val >= ranges[0][b] && b_val < ranges[0][b+1] &&
                             g_val >= ranges[1][g] && g_val < ranges[1][g+1] &&
                             r_val >= ranges[2][r] && r_val < ranges[2][r+1]) {
-                            count++;
+                            count += 1.0f;
                         }
                     }
                 }
@@ -341,7 +342,7 @@ void color_histogram(const Mat& src,
         }
     }
 
-    // 归一化
+    // Normalize
     normalize(hist, hist, 1, 0, NORM_L1);
 }
 
@@ -352,7 +353,7 @@ void compute_integral_image(const Mat& src,
     integral.create(src.rows + 1, src.cols + 1, CV_64F);
     integral = Scalar(0);
 
-    // 计算积分图
+    // Calculate integral image
     for (int y = 0; y < src.rows; y++) {
         double row_sum = 0;
         for (int x = 0; x < src.cols; x++) {
@@ -368,16 +369,16 @@ void compute_gradient_histogram(const Mat& magnitude,
                               vector<float>& hist,
                               int bin_num) {
     hist.resize(bin_num);
-    fill(hist.begin(), hist.end(), 0);
+    fill(hist.begin(), hist.end(), 0.0f);
 
-    float bin_size = PI / bin_num;
+    float bin_size = static_cast<float>(PI) / static_cast<float>(bin_num);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < magnitude.rows; y++) {
         for (int x = 0; x < magnitude.cols; x++) {
             float mag = magnitude.at<float>(y, x);
             float ang = angle.at<float>(y, x);
-            if (ang < 0) ang += PI;
+            if (ang < 0) ang += static_cast<float>(PI);
 
             int bin = static_cast<int>(ang / bin_size);
             if (bin >= bin_num) bin = bin_num - 1;
@@ -387,12 +388,12 @@ void compute_gradient_histogram(const Mat& magnitude,
         }
     }
 
-    // 归一化
-    float sum = 0;
+    // Normalize
+    float sum = 0.0f;
     for (float val : hist) {
         sum += val * val;
     }
-    sum = sqrt(sum + 1e-6);
+    sum = static_cast<float>(sqrt(static_cast<double>(sum) + 1e-6));
 
     for (float& val : hist) {
         val /= sum;

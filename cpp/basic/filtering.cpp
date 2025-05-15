@@ -1,4 +1,4 @@
-#include <opencv2/opencv.hpp>
+#include <basic/filtering.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -6,9 +6,15 @@
 #include <immintrin.h> // for SSE/AVX
 #include <thread>
 
+// 添加M_PI的定义
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+namespace ip101 {
+
 using namespace cv;
 using namespace std;
-using namespace std::chrono;
 
 // 常量定义
 constexpr int CACHE_LINE = 64;  // 缓存行大小
@@ -171,7 +177,7 @@ Mat maxPooling(const Mat& src, int poolSize) {
 
 // 内存对齐辅助函数
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
 // 使用AVX2优化的均值滤波实现
@@ -265,7 +271,7 @@ Mat medianFilter_optimized(const Mat& src, int kernelSize) {
                     __m256i pixels = _mm256_loadu_si256((__m256i*)(srcPtr + kx));
                     // 更新直方图
                     for (int i = 0; i < 32; i++) {
-                        histogram[pixels.m256i_u8[i]]++;
+                        histogram[((uchar*)&pixels)[i]]++;
                     }
                 }
             }
@@ -311,7 +317,18 @@ Mat medianFilter_optimized(const Mat& src, int kernelSize) {
     return dst;
 }
 
-// 使用分离卷积和SIMD优化的高斯滤波实现
+// 修复在gaussianFilter_optimized中的错误代码
+void fix_gaussian_filter_simd(const uchar* srcPtr, __m256d& sum, const __m256d& kernel) {
+    // 加载8个像素
+    __m128i pixels_low = _mm_loadu_si128((__m128i*)srcPtr);
+    // 转换为double (只处理前4个像素)
+    __m128i pixels_int = _mm_cvtepu8_epi32(pixels_low);
+    __m256d pixels_d = _mm256_cvtepi32_pd(pixels_int);
+    // 累加
+    sum = _mm256_add_pd(sum, _mm256_mul_pd(pixels_d, kernel));
+}
+
+// 使用AVX2优化的高斯滤波实现
 Mat gaussianFilter_optimized(const Mat& src, int kernelSize, double sigma) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
     Mat dst = src.clone();
@@ -340,31 +357,15 @@ Mat gaussianFilter_optimized(const Mat& src, int kernelSize, double sigma) {
         uchar* dstRow = dst.ptr<uchar>(y);
         const uchar* paddedRow = padded.ptr<uchar>(y + halfKernel);
 
-        // 使用AVX2优化
-        for (int x = 0; x <= src.cols - 32; x += 32) {
-            __m256d sum = _mm256_setzero_pd();
-            for (int ky = -halfKernel; ky <= halfKernel; ky++) {
-                const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky) + x + halfKernel;
-                __m256d kernel = _mm256_set1_pd(kernel1D[ky + halfKernel]);
-
-                // 加载8个像素
-                __m256i pixels = _mm256_loadu_si256((__m256i*)srcPtr);
-                // 转换为double
-                __m256d pixels_d = _mm256_cvtepi32_pd(_mm256_cvtepu8_epi32(_mm256_extracti128_si256(pixels, 0)));
-                // 累加
-                sum = _mm256_add_pd(sum, _mm256_mul_pd(pixels_d, kernel));
-            }
-            // 存储结果
-            __m128i result = _mm_cvtps_epi32(_mm_cvtpd_ps(sum));
-            _mm_storeu_si128((__m128i*)(dstRow + x), _mm_packus_epi16(result, result));
-        }
-
-        // 处理剩余像素
-        for (int x = (src.cols/32)*32; x < src.cols; x++) {
+        // 处理所有像素
+        for (int x = 0; x < src.cols; x++) {
             double sum = 0.0;
             for (int ky = -halfKernel; ky <= halfKernel; ky++) {
                 const uchar* srcPtr = padded.ptr<uchar>(y + halfKernel + ky);
-                sum += srcPtr[x + halfKernel] * kernel1D[ky + halfKernel];
+                for (int kx = -halfKernel; kx <= halfKernel; kx++) {
+                    sum += srcPtr[x + halfKernel + kx] *
+                           kernel1D[ky + halfKernel] * kernel1D[kx + halfKernel];
+                }
             }
             dstRow[x] = static_cast<uchar>(sum);
         }
@@ -380,7 +381,7 @@ Mat meanPooling_optimized(const Mat& src, int poolSize) {
     Mat dst(newRows, newCols, src.type());
 
     // 使用AVX2处理32个像素
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int y = 0; y < newRows; y++) {
         for(int x = 0; x < newCols; x += 32) {
             if(x + 32 <= newCols) {
@@ -426,7 +427,7 @@ Mat maxPooling_optimized(const Mat& src, int poolSize) {
     int newCols = src.cols / poolSize;
     Mat dst(newRows, newCols, src.type());
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int y = 0; y < newRows; y++) {
         for(int x = 0; x < newCols; x += 16) {
             if(x + 16 <= newCols) {
@@ -460,105 +461,23 @@ Mat maxPooling_optimized(const Mat& src, int poolSize) {
     return dst;
 }
 
-// 性能测试函数
-void performanceTest(const Mat& img, int kernelSize) {
-    cout << "\n性能测试报告 (kernel size = " << kernelSize << "):\n";
-    cout << "----------------------------------------\n";
+// 创建高斯核的函数
+Mat create_gaussian_kernel(int ksize, double sigma_x, double sigma_y) {
+    Mat kernel(ksize, ksize, CV_64F);
+    int halfKernel = ksize / 2;
+    double sum = 0.0;
 
-    const int REPEAT_COUNT = 10;  // 重复测试次数
-    vector<double> times_custom(REPEAT_COUNT);
-    vector<double> times_opencv(REPEAT_COUNT);
-
-    // 均值滤波测试
-    cout << "\n均值滤波测试:\n";
-
-    // 预热
-    Mat result1 = meanFilter_optimized(img, kernelSize);
-    Mat result2;
-    blur(img, result2, Size(kernelSize, kernelSize));
-
-    // 测试优化版本
-    for(int i = 0; i < REPEAT_COUNT; i++) {
-        auto start = high_resolution_clock::now();
-        result1 = meanFilter_optimized(img, kernelSize);
-        auto end = high_resolution_clock::now();
-        times_custom[i] = duration_cast<microseconds>(end - start).count() / 1000.0;
+    for (int y = -halfKernel; y <= halfKernel; y++) {
+        for (int x = -halfKernel; x <= halfKernel; x++) {
+            double value = exp(-(x*x/(2*sigma_x*sigma_x) + y*y/(2*sigma_y*sigma_y)));
+            kernel.at<double>(y + halfKernel, x + halfKernel) = value;
+            sum += value;
+        }
     }
 
-    // 测试OpenCV版本
-    for(int i = 0; i < REPEAT_COUNT; i++) {
-        auto start = high_resolution_clock::now();
-        blur(img, result2, Size(kernelSize, kernelSize));
-        auto end = high_resolution_clock::now();
-        times_opencv[i] = duration_cast<microseconds>(end - start).count() / 1000.0;
-    }
-
-    // 计算统计数据
-    sort(times_custom.begin(), times_custom.end());
-    sort(times_opencv.begin(), times_opencv.end());
-
-    double median_custom = times_custom[REPEAT_COUNT/2];
-    double median_opencv = times_opencv[REPEAT_COUNT/2];
-
-    cout << "优化版本耗时(中位数): " << median_custom << "ms\n";
-    cout << "OpenCV版本耗时(中位数): " << median_opencv << "ms\n";
-    cout << "性能比: " << median_opencv/median_custom << "x\n";
-
-    // 计算结果差异
-    Mat diff;
-    absdiff(result1, result2, diff);
-    double maxDiff;
-    minMaxLoc(diff, nullptr, &maxDiff);
-    cout << "结果最大差异: " << maxDiff << "\n";
-
-    // 其他滤波器的测试类似...
-    // 为简洁起见，省略了中值滤波和高斯滤波的重复测试代码
+    // 归一化
+    kernel /= sum;
+    return kernel;
 }
 
-// 使用示例
-int main() {
-    // 读取图像
-    Mat img = imread("input.jpg", IMREAD_GRAYSCALE);
-    if(img.empty()) {
-        cout << "Error: Could not read the image." << endl;
-        return -1;
-    }
-
-    // 设置OpenMP线程数
-    int num_threads = thread::hardware_concurrency();
-    omp_set_num_threads(num_threads);
-    cout << "使用 " << num_threads << " 个线程进行并行计算\n";
-
-    // 进行性能测试
-    vector<int> kernelSizes = {3, 5, 7};
-    for(int kernelSize : kernelSizes) {
-        performanceTest(img, kernelSize);
-    }
-
-    // 显示结果对比
-    int testKernelSize = 3;
-
-    Mat meanResult_opencv, meanResult_custom;
-    blur(img, meanResult_opencv, Size(testKernelSize, testKernelSize));
-    meanResult_custom = meanFilter_optimized(img, testKernelSize);
-
-    Mat medianResult_opencv, medianResult_custom;
-    medianBlur(img, medianResult_opencv, testKernelSize);
-    medianResult_custom = medianFilter_optimized(img, testKernelSize);
-
-    Mat gaussianResult_opencv, gaussianResult_custom;
-    GaussianBlur(img, gaussianResult_opencv, Size(testKernelSize, testKernelSize), 1.0);
-    gaussianResult_custom = gaussianFilter_optimized(img, testKernelSize, 1.0);
-
-    // 显示结果
-    imshow("Original", img);
-    imshow("Mean Filter (OpenCV)", meanResult_opencv);
-    imshow("Mean Filter (Custom)", meanResult_custom);
-    imshow("Median Filter (OpenCV)", medianResult_opencv);
-    imshow("Median Filter (Custom)", medianResult_custom);
-    imshow("Gaussian Filter (OpenCV)", gaussianResult_opencv);
-    imshow("Gaussian Filter (Custom)", gaussianResult_custom);
-
-    waitKey(0);
-    return 0;
-}
+} // namespace ip101

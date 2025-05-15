@@ -48,7 +48,7 @@ void multi_scale_detail_enhancement(const cv::Mat& src, cv::Mat& dst,
     result.convertTo(dst, CV_8UC3, beta);
 
     // 确保结果在有效范围内
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 0; i < dst.rows; i++) {
         for(int j = 0; j < dst.cols; j++) {
             cv::Vec3b& pixel = dst.at<cv::Vec3b>(i, j);

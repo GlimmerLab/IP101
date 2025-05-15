@@ -34,7 +34,7 @@ void real_time_adaptive_contrast(const cv::Mat& src, cv::Mat& dst,
     cv::Mat result = float_src.mul(gain);
 
     // 使用OpenMP加速处理
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 0; i < result.rows; i++) {
         for(int j = 0; j < result.cols; j++) {
             cv::Vec3f& pixel = result.at<cv::Vec3f>(i, j);

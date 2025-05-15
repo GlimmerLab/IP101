@@ -1,4 +1,4 @@
-#include "image_segmentation.hpp"
+#include <basic/image_segmentation.hpp>
 #include <queue>
 #include <random>
 #include <algorithm>
@@ -8,17 +8,17 @@ namespace ip101 {
 using namespace cv;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// 计算两个颜色的欧氏距离
+// Calculate Euclidean distance between two colors
 inline double colorDistance(const Vec3b& c1, const Vec3b& c2) {
     double diff0 = c1[0] - c2[0];
     double diff1 = c1[1] - c2[1];
@@ -33,7 +33,7 @@ void threshold_segmentation(const Mat& src, Mat& dst,
                           int type) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -43,20 +43,20 @@ void threshold_segmentation(const Mat& src, Mat& dst,
 
     dst.create(gray.size(), CV_8UC1);
 
-    // 使用OpenMP并行处理
-    #pragma omp parallel for collapse(2)
+    // Use OpenMP for parallel processing
+    #pragma omp parallel for
     for (int y = 0; y < gray.rows; y++) {
         for (int x = 0; x < gray.cols; x++) {
             uchar pixel = gray.at<uchar>(y, x);
             switch (type) {
                 case THRESH_BINARY:
-                    dst.at<uchar>(y, x) = pixel > threshold ? max_val : 0;
+                    dst.at<uchar>(y, x) = pixel > threshold ? static_cast<uchar>(max_val) : 0;
                     break;
                 case THRESH_BINARY_INV:
-                    dst.at<uchar>(y, x) = pixel > threshold ? 0 : max_val;
+                    dst.at<uchar>(y, x) = pixel > threshold ? 0 : static_cast<uchar>(max_val);
                     break;
                 case THRESH_TRUNC:
-                    dst.at<uchar>(y, x) = pixel > threshold ? threshold : pixel;
+                    dst.at<uchar>(y, x) = pixel > threshold ? static_cast<uchar>(threshold) : pixel;
                     break;
                 case THRESH_TOZERO:
                     dst.at<uchar>(y, x) = pixel > threshold ? pixel : 0;
@@ -73,12 +73,12 @@ void kmeans_segmentation(const Mat& src, Mat& dst,
                         int k, int max_iter) {
     CV_Assert(!src.empty() && src.channels() == 3);
 
-    // 将图像转换为浮点型数据
+    // Convert image to floating-point data
     Mat data;
     src.convertTo(data, CV_32F);
     data = data.reshape(1, src.rows * src.cols);
 
-    // 随机初始化聚类中心
+    // Randomly initialize cluster centers
     std::vector<Vec3f> centers(k);
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -90,10 +90,10 @@ void kmeans_segmentation(const Mat& src, Mat& dst,
                           data.at<float>(idx, 2));
     }
 
-    // K均值迭代
+    // K-means iteration
     std::vector<int> labels(src.rows * src.cols);
     for (int iter = 0; iter < max_iter; iter++) {
-        // 分配标签
+        // Assign labels
         #pragma omp parallel for
         for (int i = 0; i < src.rows * src.cols; i++) {
             float min_dist = FLT_MAX;
@@ -103,7 +103,7 @@ void kmeans_segmentation(const Mat& src, Mat& dst,
                        data.at<float>(i, 2));
 
             for (int j = 0; j < k; j++) {
-                float dist = norm(pixel - centers[j]);
+                float dist = static_cast<float>(norm(pixel - centers[j]));
                 if (dist < min_dist) {
                     min_dist = dist;
                     min_center = j;
@@ -112,7 +112,7 @@ void kmeans_segmentation(const Mat& src, Mat& dst,
             labels[i] = min_center;
         }
 
-        // 更新聚类中心
+        // Update cluster centers
         std::vector<Vec3f> new_centers(k, Vec3f(0, 0, 0));
         std::vector<int> counts(k, 0);
 
@@ -140,7 +140,7 @@ void kmeans_segmentation(const Mat& src, Mat& dst,
         }
     }
 
-    // 生成结果图像
+    // Generate result image
     dst.create(src.size(), CV_8UC3);
     #pragma omp parallel for
     for (int i = 0; i < src.rows * src.cols; i++) {
@@ -158,12 +158,12 @@ void region_growing(const Mat& src, Mat& dst,
                    double threshold) {
     CV_Assert(!src.empty() && !seed_points.empty());
 
-    // 初始化结果图像
+    // Initialize result image
     dst = Mat::zeros(src.size(), CV_8UC1);
 
-    // 对每个种子点进行区域生长
+    // Process each seed point
     for (const auto& seed : seed_points) {
-        if (dst.at<uchar>(seed) > 0) continue;  // 跳过已处理的点
+        if (dst.at<uchar>(seed) > 0) continue;  // Skip already processed points
 
         std::queue<Point> points;
         points.push(seed);
@@ -175,7 +175,7 @@ void region_growing(const Mat& src, Mat& dst,
             Point current = points.front();
             points.pop();
 
-            // 检查8邻域
+            // Check 8-neighborhood
             for (int dy = -1; dy <= 1; dy++) {
                 for (int dx = -1; dx <= 1; dx++) {
                     Point neighbor(current.x + dx, current.y + dy);
@@ -203,25 +203,25 @@ void watershed_segmentation(const Mat& src,
                           Mat& dst) {
     CV_Assert(!src.empty() && !markers.empty());
 
-    // 转换标记图像为32位整型
+    // Convert marker image to 32-bit integer
     Mat markers32;
     markers.convertTo(markers32, CV_32S);
 
-    // 应用分水岭算法
+    // Apply watershed algorithm
     watershed(src, markers32);
 
-    // 生成结果图像
+    // Generate result image
     dst = src.clone();
     for (int y = 0; y < markers32.rows; y++) {
         for (int x = 0; x < markers32.cols; x++) {
             int marker = markers32.at<int>(y, x);
-            if (marker == -1) {  // 边界
+            if (marker == -1) {  // Boundary
                 dst.at<Vec3b>(y, x) = Vec3b(0, 0, 255);
             }
         }
     }
 
-    // 更新标记图像
+    // Update marker image
     markers32.convertTo(markers, CV_8U);
 }
 
@@ -229,17 +229,17 @@ void graph_cut_segmentation(const Mat& src, Mat& dst,
                           const Rect& rect) {
     CV_Assert(!src.empty());
 
-    // 创建掩码
+    // Create mask
     Mat mask = Mat::zeros(src.size(), CV_8UC1);
-    mask(rect) = GC_PR_FGD;  // 矩形区域内为可能前景
+    mask(rect) = GC_PR_FGD;  // Rectangle area as probable foreground
 
-    // 创建临时数组
+    // Create temporary arrays
     Mat bgdModel, fgdModel;
 
-    // 应用GrabCut算法
+    // Apply GrabCut algorithm
     grabCut(src, mask, rect, bgdModel, fgdModel, 5, GC_INIT_WITH_RECT);
 
-    // 生成结果图像
+    // Generate result image
     dst = src.clone();
     for (int y = 0; y < src.rows; y++) {
         for (int x = 0; x < src.cols; x++) {

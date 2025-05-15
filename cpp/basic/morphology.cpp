@@ -1,4 +1,4 @@
-#include "morphology.hpp"
+#include <basic/morphology.hpp>
 #include <algorithm>
 
 namespace ip101 {
@@ -6,17 +6,17 @@ namespace ip101 {
 using namespace cv;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// 获取默认结构元素
+// Get default structuring element
 Mat getDefaultKernel() {
     return Mat::ones(3, 3, CV_8UC1);
 }
@@ -43,15 +43,15 @@ Mat create_kernel(int shape, Size ksize) {
             break;
 
         case MORPH_ELLIPSE: {
-            float rx = (ksize.width - 1) / 2.0f;
-            float ry = (ksize.height - 1) / 2.0f;
+            float rx = static_cast<float>(ksize.width - 1) / 2.0f;
+            float ry = static_cast<float>(ksize.height - 1) / 2.0f;
             float rx2 = rx * rx;
             float ry2 = ry * ry;
 
             for (int y = 0; y < ksize.height; y++) {
                 for (int x = 0; x < ksize.width; x++) {
-                    float dx = (x - center_x);
-                    float dy = (y - center_y);
+                    float dx = static_cast<float>(x - center_x);
+                    float dy = static_cast<float>(y - center_y);
                     if ((dx * dx) / rx2 + (dy * dy) / ry2 <= 1.0f) {
                         kernel.at<uchar>(y, x) = 1;
                     }
@@ -68,26 +68,26 @@ void dilate_manual(const Mat& src, Mat& dst,
                   const Mat& kernel, int iterations) {
     CV_Assert(!src.empty());
 
-    // 使用默认3x3结构元素
+    // Use default 3x3 structuring element if not provided
     Mat k = kernel.empty() ? getDefaultKernel() : kernel;
     int kh = k.rows;
     int kw = k.cols;
     int kcy = kh / 2;
     int kcx = kw / 2;
 
-    // 创建临时图像
+    // Create temporary image
     Mat temp;
     src.copyTo(temp);
     dst = src.clone();
 
-    // 迭代处理
+    // Process iterations
     for (int iter = 0; iter < iterations; iter++) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 uchar maxVal = 0;
 
-                // 在结构元素范围内查找最大值
+                // Find maximum value within kernel region
                 for (int ky = 0; ky < kh; ky++) {
                     int sy = y + ky - kcy;
                     if (sy < 0 || sy >= src.rows) continue;
@@ -116,26 +116,26 @@ void erode_manual(const Mat& src, Mat& dst,
                  const Mat& kernel, int iterations) {
     CV_Assert(!src.empty());
 
-    // 使用默认3x3结构元素
+    // Use default 3x3 structuring element if not provided
     Mat k = kernel.empty() ? getDefaultKernel() : kernel;
     int kh = k.rows;
     int kw = k.cols;
     int kcy = kh / 2;
     int kcx = kw / 2;
 
-    // 创建临时图像
+    // Create temporary image
     Mat temp;
     src.copyTo(temp);
     dst = src.clone();
 
-    // 迭代处理
+    // Process iterations
     for (int iter = 0; iter < iterations; iter++) {
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < src.rows; y++) {
             for (int x = 0; x < src.cols; x++) {
                 uchar minVal = 255;
 
-                // 在结构元素范围内查找最小值
+                // Find minimum value within kernel region
                 for (int ky = 0; ky < kh; ky++) {
                     int sy = y + ky - kcy;
                     if (sy < 0 || sy >= src.rows) continue;
@@ -180,9 +180,9 @@ void morphological_gradient_manual(const Mat& src, Mat& dst,
     dilate_manual(src, dilated, kernel);
     erode_manual(src, eroded, kernel);
 
-    // 计算形态学梯度
+    // Calculate morphological gradient
     dst.create(src.size(), CV_8UC1);
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < src.rows; y++) {
         for (int x = 0; x < src.cols; x++) {
             dst.at<uchar>(y, x) = saturate_cast<uchar>(

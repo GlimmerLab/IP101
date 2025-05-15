@@ -1,24 +1,42 @@
-#include "feature_extraction.hpp"
+#include <basic/feature_extraction.hpp>
 #include <cmath>
 #include <vector>
 #include <omp.h>
+
+// Check if SURF is available
+// Starting from OpenCV 4.5.1, SURF is moved to opencv_contrib
+// and needs to be explicitly enabled with OPENCV_ENABLE_NONFREE
+#if CV_VERSION_MAJOR < 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR < 5)
+#define HAVE_SURF 1
+#else
+#ifdef OPENCV_ENABLE_NONFREE
+#define HAVE_SURF 1
+#else
+#define HAVE_SURF 0
+#endif
+#endif
+
+// Include SURF if available
+#if HAVE_SURF
+#include <opencv2/xfeatures2d.hpp>
+#endif
 
 namespace ip101 {
 
 using namespace cv;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD向量宽度(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int SIMD_WIDTH = 32;    // AVX2 SIMD vector width (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 内存对齐辅助函数
+// Memory alignment helper function
 inline uchar* alignPtr(uchar* ptr, size_t align = CACHE_LINE) {
-    return (uchar*)(((size_t)ptr + align - 1) & -align);
+    return (uchar*)(((size_t)ptr + align - 1) & ~(align - 1));
 }
 
-// 高斯核生成
+// Gaussian kernel generation
 void createGaussianKernel(Mat& kernel, int ksize, double sigma) {
     kernel.create(ksize, ksize, CV_64F);
     double sum = 0;
@@ -34,7 +52,7 @@ void createGaussianKernel(Mat& kernel, int ksize, double sigma) {
         }
     }
 
-    // 归一化
+    // Normalize
     kernel /= sum;
 }
 
@@ -45,38 +63,38 @@ void compute_harris_manual(const Mat& src, Mat& dst,
                           double threshold) {
     CV_Assert(!src.empty() && src.type() == CV_8UC1);
 
-    // 计算图像梯度
+    // Calculate image gradients
     Mat Ix, Iy;
     Sobel(src, Ix, CV_64F, 1, 0, 3);
     Sobel(src, Iy, CV_64F, 0, 1, 3);
 
-    // 计算梯度的乘积
+    // Calculate gradient products
     Mat Ixx, Ixy, Iyy;
     Ixx = Ix.mul(Ix);
     Ixy = Ix.mul(Iy);
     Iyy = Iy.mul(Iy);
 
-    // 创建高斯核
+    // Create Gaussian kernel
     Mat gaussian_kernel;
     createGaussianKernel(gaussian_kernel, window_size, 1.0);
 
-    // 对梯度乘积进行高斯滤波
+    // Apply Gaussian filter to gradient products
     Mat Sxx, Sxy, Syy;
     filter2D(Ixx, Sxx, -1, gaussian_kernel);
     filter2D(Ixy, Sxy, -1, gaussian_kernel);
     filter2D(Iyy, Syy, -1, gaussian_kernel);
 
-    // 计算Harris响应
+    // Calculate Harris response
     Mat det = Sxx.mul(Syy) - Sxy.mul(Sxy);
     Mat trace = Sxx + Syy;
     Mat harris_response = det - k * trace.mul(trace);
 
-    // 阈值处理
+    // Threshold processing
     double max_val;
     minMaxLoc(harris_response, nullptr, &max_val);
     threshold *= max_val;
 
-    // 创建输出图像
+    // Create output image
     dst = Mat::zeros(src.size(), CV_8UC1);
     for (int y = 0; y < src.rows; y++) {
         for (int x = 0; x < src.cols; x++) {
@@ -92,7 +110,7 @@ void harris_corner_detection(const Mat& src, Mat& dst,
                            double k, double threshold) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -100,15 +118,15 @@ void harris_corner_detection(const Mat& src, Mat& dst,
         gray = src.clone();
     }
 
-    // 使用OpenCV的Harris角点检测
+    // Use OpenCV's Harris corner detection
     Mat corners;
     cornerHarris(gray, corners, block_size, ksize, k);
 
-    // 阈值处理
+    // Threshold processing
     Mat corners_norm;
     normalize(corners, corners_norm, 0, 255, NORM_MINMAX, CV_8UC1);
 
-    // 在原图上标记角点
+    // Mark corners on the original image
     dst = src.clone();
     for (int y = 0; y < corners_norm.rows; y++) {
         for (int x = 0; x < corners_norm.cols; x++) {
@@ -122,7 +140,7 @@ void harris_corner_detection(const Mat& src, Mat& dst,
 void sift_features(const Mat& src, Mat& dst, int nfeatures) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -130,26 +148,26 @@ void sift_features(const Mat& src, Mat& dst, int nfeatures) {
         gray = src.clone();
     }
 
-    // 创建SIFT对象，添加更多参数控制
+    // Create SIFT object with additional parameters
     Ptr<SIFT> sift = SIFT::create(
-        nfeatures,           // 特征点数量
-        4,                   // 金字塔层数
-        0.04,               // 对比度阈值
-        10,                 // 边缘响应阈值
-        1.6                 // sigma值
+        nfeatures,           // Number of features
+        4,                   // Number of pyramid layers
+        0.04,               // Contrast threshold
+        10,                 // Edge response threshold
+        1.6                 // Sigma value
     );
 
-    // 使用OpenMP并行计算
+    // Use OpenMP parallel computation
     #pragma omp parallel sections
     {
         #pragma omp section
         {
-            // 检测关键点和描述子
+            // Detect keypoints and compute descriptors
             std::vector<KeyPoint> keypoints;
             Mat descriptors;
             sift->detectAndCompute(gray, Mat(), keypoints, descriptors);
 
-            // 在原图上绘制关键点
+            // Draw keypoints on the original image
             drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
                          DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
         }
@@ -159,7 +177,7 @@ void sift_features(const Mat& src, Mat& dst, int nfeatures) {
 void surf_features(const Mat& src, Mat& dst, double hessian_threshold) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -167,36 +185,42 @@ void surf_features(const Mat& src, Mat& dst, double hessian_threshold) {
         gray = src.clone();
     }
 
-    // 创建SURF对象，添加更多参数控制
-    Ptr<SURF> surf = SURF::create(
-        hessian_threshold,    // Hessian阈值
-        4,                    // 金字塔层数
-        2,                    // 描述子维度
-        true,                 // 是否使用U-SURF
-        false                 // 是否使用扩展描述子
+#if HAVE_SURF
+    // Create SURF object with additional parameters
+    Ptr<xfeatures2d::SURF> surf = xfeatures2d::SURF::create(
+        hessian_threshold,    // Hessian threshold
+        4,                    // Number of pyramid layers
+        2,                    // Descriptor dimensions
+        true,                 // Use U-SURF
+        false                 // Use extended descriptor
     );
 
-    // 使用OpenMP并行计算
+    // Use OpenMP parallel computation
     #pragma omp parallel sections
     {
         #pragma omp section
         {
-            // 检测关键点和描述子
+            // Detect keypoints and compute descriptors
             std::vector<KeyPoint> keypoints;
             Mat descriptors;
             surf->detectAndCompute(gray, Mat(), keypoints, descriptors);
 
-            // 在原图上绘制关键点
+            // Draw keypoints on the original image
             drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
                          DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
         }
     }
+#else
+    // SURF not available, use SIFT instead and warn
+    std::cout << "Warning: SURF is not available in this OpenCV build. Using SIFT instead." << std::endl;
+    sift_features(src, dst, 500);
+#endif
 }
 
 void orb_features(const Mat& src, Mat& dst, int nfeatures) {
     CV_Assert(!src.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray;
     if (src.channels() == 3) {
         cvtColor(src, gray, COLOR_BGR2GRAY);
@@ -204,30 +228,30 @@ void orb_features(const Mat& src, Mat& dst, int nfeatures) {
         gray = src.clone();
     }
 
-    // 创建ORB对象，添加更多参数控制
+    // Create ORB object with additional parameters
     Ptr<ORB> orb = ORB::create(
-        nfeatures,           // 特征点数量
-        1.2f,               // 尺度因子
-        8,                  // 金字塔层数
-        31,                 // 边缘阈值
-        0,                  // 第一层金字塔的尺度
+        nfeatures,           // Number of features
+        1.2f,               // Scale factor
+        8,                  // Number of pyramid layers
+        31,                 // Edge threshold
+        0,                  // First level pyramid scale
         2,                  // WTA_K
-        ORB::HARRIS_SCORE,  // 评分类型
-        31,                 // 补丁大小
-        20                  // 快速阈值
+        ORB::HARRIS_SCORE,  // Score type
+        31,                 // Patch size
+        20                  // Fast threshold
     );
 
-    // 使用OpenMP并行计算
+    // Use OpenMP parallel computation
     #pragma omp parallel sections
     {
         #pragma omp section
         {
-            // 检测关键点和描述子
+            // Detect keypoints and compute descriptors
             std::vector<KeyPoint> keypoints;
             Mat descriptors;
             orb->detectAndCompute(gray, Mat(), keypoints, descriptors);
 
-            // 在原图上绘制关键点
+            // Draw keypoints on the original image
             drawKeypoints(src, keypoints, dst, Scalar(0, 255, 0),
                          DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
         }
@@ -238,7 +262,7 @@ void feature_matching(const Mat& src1, const Mat& src2,
                      Mat& dst, const std::string& method) {
     CV_Assert(!src1.empty() && !src2.empty());
 
-    // 转换为灰度图
+    // Convert to grayscale
     Mat gray1, gray2;
     if (src1.channels() == 3) {
         cvtColor(src1, gray1, COLOR_BGR2GRAY);
@@ -251,19 +275,23 @@ void feature_matching(const Mat& src1, const Mat& src2,
         gray2 = src2.clone();
     }
 
-    // 创建特征检测器
+    // Create feature detector
     Ptr<Feature2D> detector;
     if (method == "sift") {
         detector = SIFT::create(0, 4, 0.04, 10, 1.6);
-    } else if (method == "surf") {
-        detector = SURF::create(100, 4, 2, true, false);
-    } else if (method == "orb") {
+    }
+#if HAVE_SURF
+    else if (method == "surf") {
+        detector = xfeatures2d::SURF::create(100, 4, 2, true, false);
+    }
+#endif
+    else if (method == "orb") {
         detector = ORB::create(500, 1.2f, 8, 31, 0, 2, ORB::HARRIS_SCORE, 31, 20);
     } else {
         throw std::invalid_argument("Unsupported feature detection method: " + method);
     }
 
-    // 使用OpenMP并行计算
+    // Use OpenMP parallel computation
     std::vector<KeyPoint> keypoints1, keypoints2;
     Mat descriptors1, descriptors2;
 
@@ -279,25 +307,25 @@ void feature_matching(const Mat& src1, const Mat& src2,
         }
     }
 
-    // 创建特征匹配器
+    // Create feature matcher
     Ptr<DescriptorMatcher> matcher;
     if (method == "sift" || method == "surf") {
-        matcher = BFMatcher::create(NORM_L2, true);  // 使用交叉检查
+        matcher = BFMatcher::create(NORM_L2, true);  // With cross-check
     } else {
         matcher = BFMatcher::create(NORM_HAMMING, true);
     }
 
-    // 进行特征匹配
+    // Perform feature matching
     std::vector<DMatch> matches;
     matcher->match(descriptors1, descriptors2, matches);
 
-    // 计算匹配点之间的距离
+    // Calculate distances between matching points
     std::vector<double> distances;
     for (const auto& match : matches) {
         distances.push_back(match.distance);
     }
 
-    // 计算距离的均值和标准差
+    // Calculate mean and standard deviation of distances
     double mean = 0.0, stddev = 0.0;
     for (double d : distances) {
         mean += d;
@@ -308,7 +336,7 @@ void feature_matching(const Mat& src1, const Mat& src2,
     }
     stddev = std::sqrt(stddev / distances.size());
 
-    // 筛选好的匹配点
+    // Filter good matches
     std::vector<DMatch> good_matches;
     for (const auto& match : matches) {
         if (match.distance < mean - stddev) {
@@ -316,7 +344,7 @@ void feature_matching(const Mat& src1, const Mat& src2,
         }
     }
 
-    // 绘制匹配结果
+    // Draw matching results
     drawMatches(src1, keypoints1, src2, keypoints2, good_matches, dst,
                Scalar::all(-1), Scalar::all(-1),
                std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);

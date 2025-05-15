@@ -1,4 +1,4 @@
-#include "image_inpainting.hpp"
+#include <basic/image_inpainting.hpp>
 #include <omp.h>
 #include <queue>
 #include <cmath>
@@ -8,13 +8,20 @@ namespace ip101 {
 using namespace cv;
 using namespace std;
 
-namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
-constexpr double EPSILON = 1e-6;   // 数值计算精度
+// Custom comparator for Point class
+struct PointCompare {
+    bool operator()(const Point& a, const Point& b) const {
+        return (a.y < b.y) || (a.y == b.y && a.x < b.x);
+    }
+};
 
-// 计算块相似度
+namespace {
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
+constexpr double EPSILON = 1e-6;   // Numerical precision
+
+// Calculate patch similarity
 double compute_patch_similarity(
     const Mat& src1,
     const Mat& src2,
@@ -48,12 +55,12 @@ double compute_patch_similarity(
     return sqrt(sum);
 }
 
-// 计算梯度
+// Calculate gradient
 void compute_gradient(const Mat& src, Mat& dx, Mat& dy) {
     dx = Mat::zeros(src.size(), CV_32F);
     dy = Mat::zeros(src.size(), CV_32F);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 1; i < src.rows-1; i++) {
         for(int j = 1; j < src.cols-1; j++) {
             dx.at<float>(i,j) = (float)(src.at<uchar>(i,j+1) - src.at<uchar>(i,j-1)) / 2.0f;
@@ -74,18 +81,18 @@ Mat diffusion_inpaint(
     Mat mask_float;
     mask.convertTo(mask_float, CV_32F, 1.0/255.0);
 
-    // 迭代扩散
+    // Iterative diffusion
     for(int iter = 0; iter < num_iterations; iter++) {
         Mat next = result.clone();
 
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for(int i = radius; i < result.rows-radius; i++) {
             for(int j = radius; j < result.cols-radius; j++) {
                 if(mask.at<uchar>(i,j) > 0) {
                     Vec3f sum(0,0,0);
                     float weight_sum = 0;
 
-                    // 在邻域内进行扩散
+                    // Diffuse within neighborhood
                     for(int di = -radius; di <= radius; di++) {
                         for(int dj = -radius; dj <= radius; dj++) {
                             if(di == 0 && dj == 0) continue;
@@ -122,7 +129,7 @@ Mat patch_match_inpaint(
     Mat result = src.clone();
     int half_patch = patch_size / 2;
 
-    // 获取需要修复的点
+    // Get points to be inpainted
     vector<Point> inpaint_points;
     for(int i = half_patch; i < mask.rows-half_patch; i++) {
         for(int j = half_patch; j < mask.cols-half_patch; j++) {
@@ -132,14 +139,14 @@ Mat patch_match_inpaint(
         }
     }
 
-    // 对每个需要修复的点找最佳匹配块
+    // Find best matching patch for each point to be inpainted
     #pragma omp parallel for
-    for(size_t k = 0; k < inpaint_points.size(); k++) {
+    for(int k = 0; k < static_cast<int>(inpaint_points.size()); k++) {
         Point p = inpaint_points[k];
         double min_dist = numeric_limits<double>::max();
         Point best_match;
 
-        // 在搜索区域内寻找最佳匹配
+        // Search for best match in the search area
         for(int i = max(half_patch, p.y-search_area);
             i < min(src.rows-half_patch, p.y+search_area); i++) {
             for(int j = max(half_patch, p.x-search_area);
@@ -155,7 +162,7 @@ Mat patch_match_inpaint(
             }
         }
 
-        // 复制最佳匹配块
+        // Copy the best matching patch
         if(min_dist < numeric_limits<double>::max()) {
             for(int di = -half_patch; di <= half_patch; di++) {
                 for(int dj = -half_patch; dj <= half_patch; dj++) {
@@ -181,13 +188,19 @@ Mat fast_marching_inpaint(
     Mat known = (mask == 0);
     Mat dx, dy;
 
-    // 计算梯度
+    // Calculate gradient
     compute_gradient(src, dx, dy);
 
-    // 使用优先队列存储边界点
-    priority_queue<pair<float,Point>> boundary;
+    // Use priority queue to store boundary points
+    // Define a custom comparator for the priority queue that compares the first element
+    auto comp = [](const pair<float, Point>& a, const pair<float, Point>& b) {
+        return a.first < b.first;
+    };
 
-    // 初始化边界点
+    // Create the priority queue with the custom comparator
+    priority_queue<pair<float, Point>, vector<pair<float, Point>>, decltype(comp)> boundary(comp);
+
+    // Initialize boundary points
     for(int i = radius; i < src.rows-radius; i++) {
         for(int j = radius; j < src.cols-radius; j++) {
             if(mask.at<uchar>(i,j) > 0) {
@@ -209,14 +222,14 @@ Mat fast_marching_inpaint(
         }
     }
 
-    // 快速行进法修复
+    // Fast marching inpainting
     while(!boundary.empty()) {
         Point p = boundary.top().second;
         boundary.pop();
 
         if(known.at<uchar>(p) > 0) continue;
 
-        // 计算修复值
+        // Calculate inpainting value
         Vec3f sum(0,0,0);
         float weight_sum = 0;
 
@@ -236,7 +249,7 @@ Mat fast_marching_inpaint(
             result.at<Vec3b>(p) = Vec3b(sum);
             known.at<uchar>(p) = 255;
 
-            // 更新边界
+            // Update boundary
             for(int di = -1; di <= 1; di++) {
                 for(int dj = -1; dj <= 1; dj++) {
                     Point pt(p.x+dj, p.y+di);
@@ -262,7 +275,7 @@ Mat texture_synthesis_inpaint(
     Mat result = src.clone();
     int half_patch = patch_size / 2;
 
-    // 获取所有需要修复的块
+    // Get all patches to be inpainted
     vector<Rect> patches;
     for(int i = half_patch; i < src.rows-half_patch; i += patch_size-overlap) {
         for(int j = half_patch; j < src.cols-half_patch; j += patch_size-overlap) {
@@ -273,29 +286,29 @@ Mat texture_synthesis_inpaint(
         }
     }
 
-    // 对每个块进行纹理合成
+    // Inpaint each patch
     #pragma omp parallel for
-    for(size_t k = 0; k < patches.size(); k++) {
+    for(int k = 0; k < static_cast<int>(patches.size()); k++) {
         Rect patch = patches[k];
         double min_error = numeric_limits<double>::max();
         Mat best_patch;
 
-        // 在源图像中搜索最佳匹配块
+        // Search for best matching patch in the source image
         for(int i = half_patch; i < src.rows-half_patch; i += patch_size/2) {
             for(int j = half_patch; j < src.cols-half_patch; j += patch_size/2) {
                 if(mask.at<uchar>(i,j) == 0) {
                     Rect r(j-half_patch, i-half_patch, patch_size, patch_size);
                     Mat candidate = src(r);
 
-                    // 计算重叠区域的误差
+                    // Calculate error for overlapping regions
                     double error = 0;
-                    if(patch.x > 0) {  // 左重叠
+                    if(patch.x > 0) {  // Left overlap
                         Mat left_src = result(Rect(patch.x-overlap, patch.y,
                                                  overlap, patch_size));
                         Mat left_cand = candidate(Rect(0, 0, overlap, patch_size));
                         error += norm(left_src, left_cand);
                     }
-                    if(patch.y > 0) {  // 上重叠
+                    if(patch.y > 0) {  // Top overlap
                         Mat top_src = result(Rect(patch.x, patch.y-overlap,
                                                 patch_size, overlap));
                         Mat top_cand = candidate(Rect(0, 0, patch_size, overlap));
@@ -310,7 +323,7 @@ Mat texture_synthesis_inpaint(
             }
         }
 
-        // 将最佳匹配块复制到结果中
+        // Copy the best matching patch to the result
         if(!best_patch.empty()) {
             best_patch.copyTo(result(patch));
         }
@@ -330,12 +343,12 @@ Mat structure_propagation_inpaint(
     confidence.convertTo(confidence, CV_32F, 1.0/255.0);
     int half_patch = patch_size / 2;
 
-    // 计算结构张量
+    // Calculate structure tensor
     Mat dx, dy;
     compute_gradient(src, dx, dy);
     Mat tensor = Mat::zeros(src.size(), CV_32FC3);
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 1; i < src.rows-1; i++) {
         for(int j = 1; j < src.cols-1; j++) {
             float ix = dx.at<float>(i,j);
@@ -344,9 +357,9 @@ Mat structure_propagation_inpaint(
         }
     }
 
-    // 迭代修复
+    // Iterative inpainting
     for(int iter = 0; iter < num_iterations; iter++) {
-        // 找到置信度最高的边界点
+        // Find boundary point with highest confidence
         Point max_pt;
         float max_conf = -1;
 
@@ -374,12 +387,12 @@ Mat structure_propagation_inpaint(
 
         if(max_conf < 0) break;
 
-        // 在边界点处进行结构传播
+        // Perform structure propagation at boundary point
         Vec3f t = tensor.at<Vec3f>(max_pt);
         float angle = 0.5f * atan2(2*t[1], t[0]-t[2]);
         Point2f dir(cos(angle), sin(angle));
 
-        // 寻找最佳匹配块
+        // Find best matching patch
         double min_dist = numeric_limits<double>::max();
         Point best_match;
 
@@ -391,12 +404,12 @@ Mat structure_propagation_inpaint(
                     float angle2 = 0.5f * atan2(2*t2[1], t2[0]-t2[2]);
                     Point2f dir2(cos(angle2), sin(angle2));
 
-                    // 考虑结构相似性
+                    // Consider structure similarity
                     float dir_sim = abs(dir.dot(dir2));
                     if(dir_sim > 0.8f) {
                         double dist = compute_patch_similarity(
                             src, src, max_pt, pt, patch_size);
-                        dist *= (2 - dir_sim);  // 结构权重
+                        dist *= (2 - dir_sim);  // Structure weight
 
                         if(dist < min_dist) {
                             min_dist = dist;
@@ -407,7 +420,7 @@ Mat structure_propagation_inpaint(
             }
         }
 
-        // 复制最佳匹配块
+        // Copy best matching patch
         if(min_dist < numeric_limits<double>::max()) {
             for(int di = -half_patch; di <= half_patch; di++) {
                 for(int dj = -half_patch; dj <= half_patch; dj++) {
@@ -435,7 +448,7 @@ Mat patchmatch_inpaint(
     Mat result = src.clone();
     int half_patch = patch_size / 2;
 
-    // 初始化随机匹配
+    // Initialize random matching
     RNG rng;
     Mat offsets(mask.size(), CV_32SC2);
     for(int i = 0; i < mask.rows; i++) {
@@ -448,13 +461,13 @@ Mat patchmatch_inpaint(
         }
     }
 
-    // 迭代优化
+    // Iterative optimization
     for(int iter = 0; iter < num_iterations; iter++) {
-        // 传播
+        // Propagation
         for(int i = 0; i < mask.rows; i++) {
             for(int j = 0; j < mask.cols; j++) {
                 if(mask.at<uchar>(i,j) > 0) {
-                    // 检查相邻像素的匹配
+                    // Check matching of adjacent pixels
                     vector<Point> neighbors = {
                         Point(j-1,i), Point(j+1,i),
                         Point(j,i-1), Point(j,i+1)
@@ -483,7 +496,7 @@ Mat patchmatch_inpaint(
             }
         }
 
-        // 随机搜索
+        // Random search
         for(int i = 0; i < mask.rows; i++) {
             for(int j = 0; j < mask.cols; j++) {
                 if(mask.at<uchar>(i,j) > 0) {
@@ -511,7 +524,7 @@ Mat patchmatch_inpaint(
         }
     }
 
-    // 应用最佳匹配
+    // Apply best matching
     for(int i = 0; i < mask.rows; i++) {
         for(int j = 0; j < mask.cols; j++) {
             if(mask.at<uchar>(i,j) > 0) {
@@ -540,7 +553,7 @@ vector<Mat> video_inpaint(
     }
     int half_patch = patch_size / 2;
 
-    // 计算光流场
+    // Calculate optical flow field
     vector<Mat> flow_forward, flow_backward;
     for(size_t i = 0; i < frames.size()-1; i++) {
         Mat flow;
@@ -556,10 +569,10 @@ vector<Mat> video_inpaint(
         flow_backward.push_back(flow);
     }
 
-    // 迭代修复
+    // Iterative inpainting
     for(int iter = 0; iter < num_iterations; iter++) {
         for(size_t t = 0; t < frames.size(); t++) {
-            // 获取时空邻域
+            // Get temporal neighborhood
             vector<Mat> temporal_patches;
             if(t > 0) {
                 Mat map1, map2;
@@ -578,14 +591,14 @@ vector<Mat> video_inpaint(
                 temporal_patches.push_back(warped);
             }
 
-            // 修复当前帧
+            // Inpaint current frame
             for(int i = half_patch; i < frames[t].rows-half_patch; i++) {
                 for(int j = half_patch; j < frames[t].cols-half_patch; j++) {
                     if(masks[t].at<uchar>(i,j) > 0) {
                         double min_dist = numeric_limits<double>::max();
                         Point best_match;
 
-                        // 空间匹配
+                        // Spatial matching
                         for(int di = -half_patch; di <= half_patch; di++) {
                             for(int dj = -half_patch; dj <= half_patch; dj++) {
                                 if(masks[t].at<uchar>(i+di,j+dj) == 0) {
@@ -600,7 +613,7 @@ vector<Mat> video_inpaint(
                             }
                         }
 
-                        // 时间匹配
+                        // Temporal matching
                         for(const auto& patch : temporal_patches) {
                             for(int di = -half_patch; di <= half_patch; di++) {
                                 for(int dj = -half_patch; dj <= half_patch; dj++) {
@@ -619,7 +632,7 @@ vector<Mat> video_inpaint(
                             }
                         }
 
-                        // 应用最佳匹配
+                        // Apply best matching
                         if(min_dist < numeric_limits<double>::max()) {
                             results[t].at<Vec3b>(i,j) =
                                 results[t].at<Vec3b>(best_match);

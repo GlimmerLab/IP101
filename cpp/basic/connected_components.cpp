@@ -1,4 +1,4 @@
-#include "connected_components.hpp"
+#include <basic/connected_components.hpp>
 #include <queue>
 #include <stack>
 #include <omp.h>
@@ -9,11 +9,11 @@ using namespace cv;
 using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constant definitions
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 并查集实现
+// Disjoint Set implementation
 class DisjointSet {
 public:
     DisjointSet(int size) : parent(size), rank(size, 0) {
@@ -24,7 +24,7 @@ public:
 
     int find(int x) {
         if (parent[x] != x) {
-            parent[x] = find(parent[x]); // 路径压缩
+            parent[x] = find(parent[x]); // Path compression
         }
         return parent[x];
     }
@@ -34,7 +34,7 @@ public:
         y = find(y);
         if (x == y) return;
 
-        // 按秩合并
+        // Union by rank
         if (rank[x] < rank[y]) {
             parent[x] = y;
         } else {
@@ -50,36 +50,36 @@ private:
     vector<int> rank;
 };
 
-// 4连通域标记的两遍扫描算法
+// Two-pass algorithm for 4-connected labeling
 int two_pass_4connected(const Mat& src, Mat& labels) {
     int height = src.rows;
     int width = src.cols;
 
-    // 第一遍扫描：初始标记
+    // First pass: initial labeling
     labels = Mat::zeros(height, width, CV_32S);
     int current_label = 1;
-    DisjointSet ds(height * width / 4); // 预估标记数量
+    DisjointSet ds(height * width / 4); // Estimated label count
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             if (src.at<uchar>(y, x) == 0) continue;
 
             vector<int> neighbor_labels;
-            // 检查上方和左方像素
+            // Check pixels above and to the left
             if (y > 0 && labels.at<int>(y-1, x) > 0)
                 neighbor_labels.push_back(labels.at<int>(y-1, x));
             if (x > 0 && labels.at<int>(y, x-1) > 0)
                 neighbor_labels.push_back(labels.at<int>(y, x-1));
 
             if (neighbor_labels.empty()) {
-                // 新连通域
+                // New component
                 labels.at<int>(y, x) = current_label++;
             } else {
-                // 取最小标记
+                // Take minimum label
                 int min_label = *min_element(neighbor_labels.begin(), neighbor_labels.end());
                 labels.at<int>(y, x) = min_label;
-                // 合并等价标记
+                // Merge equivalent labels
                 for (int label : neighbor_labels) {
                     ds.unite(min_label-1, label-1);
                 }
@@ -87,7 +87,7 @@ int two_pass_4connected(const Mat& src, Mat& labels) {
         }
     }
 
-    // 第二遍扫描：统一标记
+    // Second pass: resolve label equivalences
     vector<int> label_map(current_label);
     int num_labels = 0;
     for (int i = 0; i < current_label; i++) {
@@ -99,7 +99,7 @@ int two_pass_4connected(const Mat& src, Mat& labels) {
         label_map[i] = label_map[ds.find(i)];
     }
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             if (labels.at<int>(y, x) > 0) {
@@ -111,23 +111,23 @@ int two_pass_4connected(const Mat& src, Mat& labels) {
     return num_labels;
 }
 
-// 8连通域标记的两遍扫描算法
+// Two-pass algorithm for 8-connected labeling
 int two_pass_8connected(const Mat& src, Mat& labels) {
     int height = src.rows;
     int width = src.cols;
 
-    // 第一遍扫描：初始标记
+    // First pass: initial labeling
     labels = Mat::zeros(height, width, CV_32S);
     int current_label = 1;
-    DisjointSet ds(height * width / 4); // 预估标记数量
+    DisjointSet ds(height * width / 4); // Estimated label count
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             if (src.at<uchar>(y, x) == 0) continue;
 
             vector<int> neighbor_labels;
-            // 检查8邻域像素
+            // Check 8-neighborhood pixels
             for (int dy = -1; dy <= 0; dy++) {
                 for (int dx = -1; dx <= 1; dx++) {
                     if (dy == 0 && dx >= 0) break;
@@ -142,13 +142,13 @@ int two_pass_8connected(const Mat& src, Mat& labels) {
             }
 
             if (neighbor_labels.empty()) {
-                // 新连通域
+                // New component
                 labels.at<int>(y, x) = current_label++;
             } else {
-                // 取最小标记
+                // Take minimum label
                 int min_label = *min_element(neighbor_labels.begin(), neighbor_labels.end());
                 labels.at<int>(y, x) = min_label;
-                // 合并等价标记
+                // Merge equivalent labels
                 for (int label : neighbor_labels) {
                     ds.unite(min_label-1, label-1);
                 }
@@ -156,7 +156,7 @@ int two_pass_8connected(const Mat& src, Mat& labels) {
         }
     }
 
-    // 第二遍扫描：统一标记
+    // Second pass: resolve label equivalences
     vector<int> label_map(current_label);
     int num_labels = 0;
     for (int i = 0; i < current_label; i++) {
@@ -168,7 +168,7 @@ int two_pass_8connected(const Mat& src, Mat& labels) {
         label_map[i] = label_map[ds.find(i)];
     }
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             if (labels.at<int>(y, x) > 0) {
@@ -195,7 +195,7 @@ int label_8connected(const Mat& src, Mat& labels) {
 vector<ConnectedComponent> analyze_components(const Mat& labels, int num_labels) {
     vector<ConnectedComponent> stats(num_labels);
 
-    // 初始化统计信息
+    // Initialize statistics
     for (int i = 0; i < num_labels; i++) {
         stats[i].label = i + 1;
         stats[i].area = 0;
@@ -203,8 +203,8 @@ vector<ConnectedComponent> analyze_components(const Mat& labels, int num_labels)
         stats[i].centroid = Point(0, 0);
     }
 
-    // 计算基本属性
-    #pragma omp parallel for collapse(2)
+    // Calculate basic properties
+    #pragma omp parallel for
     for (int y = 0; y < labels.rows; y++) {
         for (int x = 0; x < labels.cols; x++) {
             int label = labels.at<int>(y, x);
@@ -226,18 +226,18 @@ vector<ConnectedComponent> analyze_components(const Mat& labels, int num_labels)
         }
     }
 
-    // 计算高级属性
+    // Calculate advanced properties
     for (auto& comp : stats) {
         if (comp.area > 0) {
             comp.centroid.x /= comp.area;
             comp.centroid.y /= comp.area;
 
-            // 计算圆形度
+            // Calculate circularity
             double perimeter = 0;
             for (int y = comp.bbox.y; y < comp.bbox.y + comp.bbox.height; y++) {
                 for (int x = comp.bbox.x; x < comp.bbox.x + comp.bbox.width; x++) {
                     if (labels.at<int>(y, x) == comp.label) {
-                        // 检查边界点
+                        // Check boundary point
                         bool is_boundary = false;
                         for (int dy = -1; dy <= 1; dy++) {
                             for (int dx = -1; dx <= 1; dx++) {
@@ -258,10 +258,10 @@ vector<ConnectedComponent> analyze_components(const Mat& labels, int num_labels)
             }
             comp.circularity = 4 * CV_PI * comp.area / (perimeter * perimeter);
 
-            // 计算长宽比
+            // Calculate aspect ratio
             comp.aspect_ratio = (double)comp.bbox.width / comp.bbox.height;
 
-            // 计算实心度
+            // Calculate solidity
             comp.solidity = (double)comp.area / (comp.bbox.width * comp.bbox.height);
         }
     }
@@ -275,7 +275,7 @@ Mat filter_components(const Mat& labels,
                      int max_area) {
     Mat filtered = Mat::zeros(labels.size(), labels.type());
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y < labels.rows; y++) {
         for (int x = 0; x < labels.cols; x++) {
             int label = labels.at<int>(y, x);
@@ -297,7 +297,7 @@ Mat draw_components(const Mat& src,
     Mat colored;
     cvtColor(src, colored, COLOR_GRAY2BGR);
 
-    // 生成随机颜色
+    // Generate random colors
     RNG rng(12345);
     vector<Vec3b> colors(stats.size());
     for (size_t i = 0; i < stats.size(); i++) {
@@ -306,8 +306,8 @@ Mat draw_components(const Mat& src,
                          rng.uniform(0, 256));
     }
 
-    // 绘制连通域
-    #pragma omp parallel for collapse(2)
+    // Draw connected components
+    #pragma omp parallel for
     for (int y = 0; y < labels.rows; y++) {
         for (int x = 0; x < labels.cols; x++) {
             int label = labels.at<int>(y, x);
@@ -317,7 +317,7 @@ Mat draw_components(const Mat& src,
         }
     }
 
-    // 绘制边界框和属性
+    // Draw bounding boxes and properties
     for (const auto& comp : stats) {
         if (comp.area > 0) {
             rectangle(colored, comp.bbox, Scalar(0, 255, 0), 2);

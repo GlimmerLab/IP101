@@ -8,97 +8,31 @@ IP101 是一个专注于图像处理基础知识、操作、应用和优化的�
 
 ```
 IP101/
-├── docs/                # 文档目录
-│   ├── basic/          # 基础问题文档
-│   │   ├── color_operations.md      # 颜色操作
-│   │   ├── filtering.md             # 图像滤波
-│   │   ├── edge_detection.md        # 边缘检测
-│   │   ├── image_transform.md       # 图像变换
-│   │   ├── image_enhancement.md     # 图像增强
-│   │   ├── feature_extraction.md    # 特征提取
-│   │   ├── image_segmentation.md    # 图像分割
-│   │   ├── morphology.md            # 形态学处理
-│   │   ├── frequency_domain.md      # 频域处理
-│   │   ├── image_compression.md     # 图像压缩
-│   │   ├── image_features.md        # 图像特征
-│   │   ├── image_matching.md        # 图像匹配
-│   │   ├── connected_components.md  # 连通域分析
-│   │   ├── thinning.md             # 图像细化
-│   │   ├── object_detection.md      # 目标检测
-│   │   ├── image_pyramid.md         # 图像金字塔
-│   │   ├── texture_analysis.md      # 纹理分析
-│   │   ├── image_inpainting.md      # 图像修复
-│   │   ├── image_quality.md         # 图像质量评价
-│   │   └── super_resolution.md      # 超分辨率
-│   └── advanced/       # 进阶算法文档
-│       ├── image_enhancement/        # 图像增强算法
-│       ├── image_correction/         # 图像矫正算法
-│       ├── image_dehazing/          # 图像去雾算法
-│       ├── advanced_filtering/       # 高级滤波算法
-│       ├── special_detection/        # 特殊目标检测
-│       └── image_effects/           # 图像特效算法
+├── include/            # 头文件目录
+│   └── basic/         # 基础算法头文件
+├── docs/               # 文档目录
+│   ├── algorithms/    # 算法文档
+│   ├── tutorials/     # 教程文档
+│   └── optimization/  # 优化技术文档
 ├── python/             # Python实现
 │   ├── basic/          # 基础问题代码
 │   │   ├── color_operations.py      # 颜色操作相关算法
 │   │   ├── filtering.py             # 图像滤波相关算法
 │   │   ├── edge_detection.py        # 边缘检测相关算法
-│   │   ├── image_transform.py       # 图像变换相关算法
-│   │   ├── image_enhancement.py     # 图像增强相关算法
-│   │   ├── feature_extraction.py    # 特征提取相关算法
-│   │   ├── image_segmentation.py    # 图像分割相关算法
-│   │   ├── morphology.py            # 形态学处理相关算法
-│   │   ├── frequency_domain.py      # 频域处理相关算法
-│   │   ├── image_compression.py     # 图像压缩相关算法
-│   │   ├── image_features.py        # 图像特征相关算法
-│   │   ├── image_matching.py        # 图像匹配相关算法
-│   │   ├── connected_components.py  # 连通域分析相关算法
-│   │   ├── thinning.py             # 图像细化相关算法
-│   │   ├── object_detection.py      # 目标检测相关算法
-│   │   ├── image_pyramid.py         # 图像金字塔相关算法
-│   │   ├── texture_analysis.py      # 纹理分析相关算法
-│   │   ├── image_inpainting.py      # 图像修复相关算法
-│   │   ├── image_quality.py         # 图像质量评价相关算法
-│   │   └── super_resolution.py      # 超分辨率相关算法
+│   │   └── ...                      # 其他算法
 │   └── advanced/       # 进阶算法代码
-│       ├── image_enhancement/        # 图像增强算法
-│       ├── image_correction/         # 图像矫正算法
-│       ├── image_dehazing/          # 图像去雾算法
-│       ├── advanced_filtering/       # 高级滤波算法
-│       ├── special_detection/        # 特殊目标检测
-│       └── image_effects/           # 图像特效算法
 ├── cpp/                # C++实现
 │   ├── basic/          # 基础问题代码
 │   │   ├── color_operations.cpp     # 颜色操作相关算法
 │   │   ├── filtering.cpp            # 图像滤波相关算法
 │   │   ├── edge_detection.cpp       # 边缘检测相关算法
-│   │   ├── image_transform.cpp      # 图像变换相关算法
-│   │   ├── image_enhancement.cpp    # 图像增强相关算法
-│   │   ├── feature_extraction.cpp   # 特征提取相关算法
-│   │   ├── image_segmentation.cpp   # 图像分割相关算法
-│   │   ├── morphology.cpp           # 形态学处理相关算法
-│   │   ├── frequency_domain.cpp     # 频域处理相关算法
-│   │   ├── image_compression.cpp    # 图像压缩相关算法
-│   │   ├── image_features.cpp       # 图像特征相关算法
-│   │   ├── image_matching.cpp       # 图像匹配相关算法
-│   │   ├── connected_components.cpp # 连通域分析相关算法
-│   │   ├── thinning.cpp            # 图像细化相关算法
-│   │   ├── object_detection.cpp     # 目标检测相关算法
-│   │   ├── image_pyramid.cpp        # 图像金字塔相关算法
-│   │   ├── texture_analysis.cpp     # 纹理分析相关算法
-│   │   ├── image_inpainting.cpp     # 图像修复相关算法
-│   │   ├── image_quality.cpp        # 图像质量评价相关算法
-│   │   └── super_resolution.cpp     # 超分辨率相关算法
+│   │   └── ...                      # 其他算法
 │   └── advanced/       # 进阶算法代码
-│       ├── image_enhancement/        # 图像增强算法
-│       ├── image_correction/         # 图像矫正算法
-│       ├── image_dehazing/          # 图像去雾算法
-│       ├── advanced_filtering/       # 高级滤波算法
-│       ├── special_detection/        # 特殊目标检测
-│       └── image_effects/           # 图像特效算法
 ├── examples/           # 示例代码
 │   ├── basic/          # 基础问题示例
 │   └── advanced/       # 进阶算法示例
-└── images/             # 示例图片
+├── assets/             # 资源文件
+└── tests/              # 测试代码
 ```
 
 ## 内容特点
@@ -355,6 +289,27 @@ IP101/
 | 磨皮美白 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/skin_beauty.py) / [C++](cpp/advanced/SkinBeauty.cpp) |
 | 钝化蒙版 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/usm.py) / [C++](cpp/advanced/UnsharpMasking.cpp) |
 
+## 进阶内容说明
+
+1. **算法文档** - `docs/algorithms/`
+   - 算法原理详解
+   - 数学模型分析
+   - 算法复杂度评估
+   - 实际应用场景说明
+
+2. **教程文档** - `docs/tutorials/`
+   - 图像处理入门指南
+   - 开发环境配置教程
+   - 算法实践教程
+   - 性能优化方法
+
+3. **优化技术** - `docs/optimization/`
+   - 多线程优化
+   - SIMD向量化
+   - GPU加速
+   - 内存优化
+   - 算法改进
+
 ## 使用说明
 
 1. 克隆项目到本地：
@@ -381,32 +336,73 @@ python python/basic/filtering.py 6         # 运行滤波中的问题6
 python python/advanced/retinex_msrcr.py
 ```
 
-## 进阶内容说明
+### C++项目构建与使用
 
-1. 图像矫正算法
-   - 自动色阶调整
-   - 自动对比度调整
-   - 光照不均匀校正
+1. 环境配置:
+   - 安装C++编译器 (如GCC, Visual Studio, Clang)
+   - 安装CMake (3.10或更高版本)
+   - 安装OpenCV库 (推荐4.0或更高版本)
 
-2. 图像滤波算法
-   - 中值滤波
-   - 导向滤波
-   - 双边滤波
+2. 构建项目:
+```bash
+# 在项目根目录创建build文件夹
+mkdir build && cd build
 
-3. 特征提取算法
-   - SIFT特征
-   - SURF特征
-   - ORB特征
+# 使用CMake配置（自动查找OpenCV）
+cmake ..
 
-4. 色彩空间转换
-   - RGB转HSV
-   - RGB转LAB
-   - RGB转YUV
+# 或手动指定OpenCV路径
+cmake -DOPENCV_DIR=/path/to/opencv/build ..
 
-5. 算法优化
-   - 多线程优化
-   - GPU加速
-   - SIMD优化
+# 编译
+cmake --build . --config Release
+```
+
+   **提示**：您也可以直接在主CMakeLists.txt文件中设置OpenCV路径：
+   ```cmake
+   # 打开CMakeLists.txt，找到以下部分并取消注释，修改为您的OpenCV路径
+   # set(OpenCV_DIR "D:/opencv/build")    # Windows示例路径
+   # set(OpenCV_DIR "/usr/local/opencv4") # Linux示例路径
+   ```
+
+3. 运行C++示例:
+```bash
+# 运行基础示例
+./examples/basic_example
+
+# 运行特定算法测试
+./examples/basic/color_operations_test
+./examples/basic/filtering_test
+```
+
+4. 开发自己的应用:
+```cpp
+// my_app.cpp
+#include <opencv2/opencv.hpp>
+#include <basic/color_operations.hpp>
+#include <basic/filtering.hpp>
+
+int main() {
+    cv::Mat image = cv::imread("your_image.jpg");
+    cv::Mat gray, filtered;
+
+    // 使用库中的灰度转换函数
+    ip101::to_gray(image, gray);
+
+    // 使用高斯滤波
+    ip101::gaussian_filter(gray, filtered, 3, 1.0);
+
+    cv::imshow("Filtered Image", filtered);
+    cv::waitKey(0);
+
+    return 0;
+}
+```
+
+5. 编译自定义应用:
+```bash
+g++ -std=c++17 my_app.cpp -o my_app -I/path/to/IP101/include `pkg-config --cflags --libs opencv4`
+```
 
 ## 贡献指南
 

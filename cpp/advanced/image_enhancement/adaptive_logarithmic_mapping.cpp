@@ -29,7 +29,7 @@ void adaptive_logarithmic_mapping(const cv::Mat& src, cv::Mat& dst,
     log_result += bias;
 
     // 使用OpenMP加速处理
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int i = 0; i < log_result.rows; i++) {
         for(int j = 0; j < log_result.cols; j++) {
             cv::Vec3f& pixel = log_result.at<cv::Vec3f>(i, j);

@@ -1,5 +1,8 @@
-#include "object_detection.hpp"
+#include <basic/object_detection.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/ml.hpp>  // 添加 ml 模块支持 SVM
 #include <omp.h>
+#include <numeric>  // 添加 numeric 支持 iota
 
 namespace ip101 {
 
@@ -7,11 +10,11 @@ using namespace cv;
 using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr int CACHE_LINE = 64;    // CPU缓存行大小(字节)
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr int CACHE_LINE = 64;    // CPU cache line size (bytes)
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// HOG特征提取器
+// HOG feature extractor
 class HOGExtractor {
 public:
     HOGExtractor(Size win_size = Size(64, 128),
@@ -24,7 +27,7 @@ public:
           block_stride_(block_stride),
           cell_size_(cell_size),
           nbins_(nbins) {
-        // 计算HOG特征维度
+        // Calculate HOG feature dimension
         Size n_cells(win_size.width / cell_size.width,
                     win_size.height / cell_size.height);
         Size n_blocks((n_cells.width - block_size.width / cell_size.width) /
@@ -36,49 +39,49 @@ public:
                       nbins / (cell_size.width * cell_size.height);
     }
 
-    // 计算图像梯度
+    // Calculate image gradients
     void computeGradients(const Mat& img, Mat& magnitude, Mat& angle) const {
         magnitude = Mat::zeros(img.size(), CV_32F);
         angle = Mat::zeros(img.size(), CV_32F);
 
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 1; y < img.rows - 1; y++) {
             for (int x = 1; x < img.cols - 1; x++) {
-                // 计算x方向梯度
-                float gx = img.at<uchar>(y, x + 1) - img.at<uchar>(y, x - 1);
-                // 计算y方向梯度
-                float gy = img.at<uchar>(y + 1, x) - img.at<uchar>(y - 1, x);
+                // Calculate x-direction gradient
+                float gx = static_cast<float>(img.at<uchar>(y, x + 1) - img.at<uchar>(y, x - 1));
+                // Calculate y-direction gradient
+                float gy = static_cast<float>(img.at<uchar>(y + 1, x) - img.at<uchar>(y - 1, x));
 
-                // 计算梯度幅值
+                // Calculate gradient magnitude
                 magnitude.at<float>(y, x) = std::sqrt(gx * gx + gy * gy);
-                // 计算梯度方向（角度）
-                angle.at<float>(y, x) = std::atan2(gy, gx) * 180.0 / CV_PI;
+                // Calculate gradient direction (angle)
+                angle.at<float>(y, x) = static_cast<float>(std::atan2(gy, gx) * 180.0 / CV_PI);
                 if (angle.at<float>(y, x) < 0) {
-                    angle.at<float>(y, x) += 180.0;
+                    angle.at<float>(y, x) += 180.0f;
                 }
             }
         }
     }
 
-    // 计算cell直方图
+    // Calculate cell histogram
     void computeCellHistogram(const Mat& magnitude, const Mat& angle,
                             vector<vector<vector<float>>>& cell_hists) const {
         Size n_cells(win_size_.width / cell_size_.width,
                     win_size_.height / cell_size_.height);
 
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for
         for (int y = 0; y < magnitude.rows; y++) {
             for (int x = 0; x < magnitude.cols; x++) {
                 float mag = magnitude.at<float>(y, x);
                 float ang = angle.at<float>(y, x);
 
-                // 计算bin索引
+                // Calculate bin index
                 float bin_width = 180.0f / nbins_;
                 int bin = static_cast<int>(ang / bin_width);
                 int next_bin = (bin + 1) % nbins_;
                 float alpha = (ang - bin * bin_width) / bin_width;
 
-                // 计算cell索引
+                // Calculate cell index
                 int cell_x = x / cell_size_.width;
                 int cell_y = y / cell_size_.height;
 
@@ -92,7 +95,7 @@ public:
         }
     }
 
-    // 计算block特征并归一化
+    // Calculate block features and normalize
     void computeBlockFeatures(const vector<vector<vector<float>>>& cell_hists,
                             vector<float>& features) const {
         Size n_cells(win_size_.width / cell_size_.width,
@@ -109,7 +112,7 @@ public:
                 vector<float> block_features;
                 float norm = 0;
 
-                // 收集block中的所有cell直方图
+                // Collect all cell histograms in the block
                 for (int cy = by; cy < by + block_size_.height / cell_size_.height; cy++) {
                     for (int cx = bx; cx < bx + block_size_.width / cell_size_.width; cx++) {
                         block_features.insert(block_features.end(),
@@ -121,8 +124,8 @@ public:
                     }
                 }
 
-                // L2-Norm归一化
-                norm = std::sqrt(norm + 1e-5);
+                // L2-Norm normalization
+                norm = std::sqrt(norm + 1e-5f);
                 for (float& val : block_features) {
                     val /= norm;
                 }
@@ -135,22 +138,22 @@ public:
     }
 
     vector<float> compute(const Mat& img) const {
-        // 调整图像大小
+        // Resize image
         Mat resized;
         resize(img, resized, win_size_);
 
-        // 计算梯度
+        // Calculate gradients
         Mat magnitude, angle;
         computeGradients(resized, magnitude, angle);
 
-        // 计算cell直方图
+        // Calculate cell histograms
         Size n_cells(win_size_.width / cell_size_.width,
                     win_size_.height / cell_size_.height);
         vector<vector<vector<float>>> cell_hists(n_cells.height,
             vector<vector<float>>(n_cells.width, vector<float>(nbins_, 0)));
         computeCellHistogram(magnitude, angle, cell_hists);
 
-        // 计算block特征并归一化
+        // Calculate block features and normalize
         vector<float> features;
         features.reserve(feature_dim_);
         computeBlockFeatures(cell_hists, features);
@@ -167,11 +170,11 @@ private:
     int feature_dim_;
 };
 
-// Haar特征提取器
+// Haar feature extractor
 class HaarExtractor {
 public:
     HaarExtractor() {
-        // 加载预训练的Haar级联分类器
+        // Load pre-trained Haar cascade classifier
         face_cascade_.load("haarcascade_frontalface_alt.xml");
     }
 
@@ -185,7 +188,7 @@ private:
     CascadeClassifier face_cascade_;
 };
 
-// 计算两个矩形的IoU
+// Calculate IoU between two rectangles
 float compute_iou(const Rect& a, const Rect& b) {
     int x1 = max(a.x, b.x);
     int y1 = max(a.y, b.y);
@@ -194,8 +197,8 @@ float compute_iou(const Rect& a, const Rect& b) {
 
     if (x1 >= x2 || y1 >= y2) return 0.0f;
 
-    float intersection_area = (x2 - x1) * (y2 - y1);
-    float union_area = a.width * a.height + b.width * b.height - intersection_area;
+    float intersection_area = static_cast<float>((x2 - x1) * (y2 - y1));
+    float union_area = static_cast<float>(a.width * a.height + b.width * b.height - intersection_area);
 
     return intersection_area / union_area;
 }
@@ -211,28 +214,28 @@ vector<DetectionResult> sliding_window_detect(
     vector<DetectionResult> results;
     HOGExtractor hog(window_size);
 
-    // 加载预训练的SVM模型
-    Ptr<SVM> svm = Algorithm::load<SVM>("pedestrian_svm.xml");
+    // Load pre-trained SVM model
+    Ptr<ml::SVM> svm = ml::SVM::load("pedestrian_svm.xml");
 
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for (int y = 0; y <= src.rows - window_size.height; y += stride) {
         for (int x = 0; x <= src.cols - window_size.width; x += stride) {
-            // 提取窗口
+            // Extract window
             Mat window = src(Rect(x, y, window_size.width, window_size.height));
 
-            // 计算HOG特征
+            // Calculate HOG features
             vector<float> features = hog.compute(window);
 
-            // SVM预测
-            Mat feature_mat(1, (int)features.size(), CV_32F);
+            // SVM prediction
+            Mat feature_mat(1, static_cast<int>(features.size()), CV_32F);
             memcpy(feature_mat.data, features.data(), features.size() * sizeof(float));
-            float score = svm->predict(feature_mat, noArray(), StatModel::RAW_OUTPUT);
+            float score = svm->predict(feature_mat, noArray(), ml::StatModel::RAW_OUTPUT);
 
             if (score > threshold) {
                 DetectionResult det;
                 det.bbox = Rect(x, y, window_size.width, window_size.height);
                 det.confidence = score;
-                det.class_id = 1;  // 行人类别
+                det.class_id = 1;  // pedestrian class
                 det.label = "pedestrian";
 
                 #pragma omp critical
@@ -247,11 +250,11 @@ vector<DetectionResult> sliding_window_detect(
 vector<DetectionResult> hog_svm_detect(const Mat& src, float threshold) {
     vector<DetectionResult> results;
 
-    // 使用OpenCV内置的HOG检测器
+    // Use OpenCV built-in HOG detector
     HOGDescriptor hog;
     hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 
-    // 检测行人
+    // Detect pedestrians
     vector<Rect> found;
     vector<double> weights;
     hog.detectMultiScale(src, found, weights,
@@ -261,12 +264,12 @@ vector<DetectionResult> hog_svm_detect(const Mat& src, float threshold) {
                         1.05,           // scale
                         threshold);     // final threshold
 
-    // 转换结果格式
+    // Convert result format
     for (size_t i = 0; i < found.size(); i++) {
         DetectionResult det;
         det.bbox = found[i];
-        det.confidence = weights[i];
-        det.class_id = 1;  // 行人类别
+        det.confidence = static_cast<float>(weights[i]);
+        det.class_id = 1;  // pedestrian class
         det.label = "pedestrian";
         results.push_back(det);
     }
@@ -277,18 +280,18 @@ vector<DetectionResult> hog_svm_detect(const Mat& src, float threshold) {
 vector<DetectionResult> haar_face_detect(const Mat& src, float threshold) {
     vector<DetectionResult> results;
 
-    // 创建Haar特征提取器
+    // Create Haar feature extractor
     HaarExtractor haar;
 
-    // 检测人脸
+    // Detect faces
     vector<Rect> faces = haar.detect(src, 1.1, 3);
 
-    // 转换结果格式
+    // Convert result format
     for (const auto& face : faces) {
         DetectionResult det;
         det.bbox = face;
-        det.confidence = 1.0f;  // Haar分类器没有置信度输出
-        det.class_id = 2;  // 人脸类别
+        det.confidence = 1.0f;  // Haar classifier has no confidence output
+        det.class_id = 2;  // face class
         det.label = "face";
         results.push_back(det);
     }
@@ -301,9 +304,9 @@ vector<int> nms(const vector<Rect>& boxes,
                 float iou_threshold) {
 
     vector<int> indices(boxes.size());
-    iota(indices.begin(), indices.end(), 0);
+    std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
 
-    // 按置信度降序排序
+    // Sort by confidence in descending order
     sort(indices.begin(), indices.end(),
          [&scores](int a, int b) { return scores[a] > scores[b]; });
 
@@ -332,25 +335,25 @@ vector<DetectionResult> track_objects(
 
     vector<DetectionResult> curr_boxes;
 
-    // 计算光流
+    // Calculate optical flow
     vector<Point2f> prev_points, curr_points;
     for (const auto& det : prev_boxes) {
-        prev_points.push_back(Point2f(det.bbox.x + det.bbox.width/2,
-                                    det.bbox.y + det.bbox.height/2));
+        prev_points.push_back(Point2f(static_cast<float>(det.bbox.x + det.bbox.width/2),
+                                    static_cast<float>(det.bbox.y + det.bbox.height/2)));
     }
 
     vector<uchar> status;
     vector<float> err;
     calcOpticalFlowPyrLK(prev, src, prev_points, curr_points, status, err);
 
-    // 更新检测框位置
+    // Update detection box positions
     for (size_t i = 0; i < prev_boxes.size(); i++) {
         if (status[i]) {
             DetectionResult det = prev_boxes[i];
             float dx = curr_points[i].x - prev_points[i].x;
             float dy = curr_points[i].y - prev_points[i].y;
-            det.bbox.x += dx;
-            det.bbox.y += dy;
+            det.bbox.x += static_cast<int>(dx);
+            det.bbox.y += static_cast<int>(dy);
             curr_boxes.push_back(det);
         }
     }
@@ -368,18 +371,18 @@ Mat draw_detections(const Mat& src,
 
     for (const auto& det : detections) {
         Scalar color;
-        if (det.class_id == 1) {  // 行人
+        if (det.class_id == 1) {  // pedestrian
             color = Scalar(0, 255, 0);
-        } else if (det.class_id == 2) {  // 人脸
+        } else if (det.class_id == 2) {  // face
             color = Scalar(0, 0, 255);
         } else {
             color = Scalar(255, 0, 0);
         }
 
-        // 绘制边界框
+        // Draw bounding box
         rectangle(img_display, det.bbox, color, 2);
 
-        // 绘制标签和置信度
+        // Draw label and confidence
         string label = format("%s %.2f", det.label.c_str(), det.confidence);
         int baseline = 0;
         Size text_size = getTextSize(label, FONT_HERSHEY_SIMPLEX,

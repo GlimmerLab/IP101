@@ -1,4 +1,4 @@
-#include "super_resolution.hpp"
+#include <basic/super_resolution.hpp>
 #include <omp.h>
 #include <cmath>
 
@@ -8,11 +8,11 @@ using namespace cv;
 using namespace std;
 
 namespace {
-// 内部常量定义
-constexpr double EPSILON = 1e-10;  // 数值计算精度
-constexpr int BLOCK_SIZE = 16;    // 分块处理大小
+// Internal constants
+constexpr double EPSILON = 1e-10;  // Numerical precision
+constexpr int BLOCK_SIZE = 16;    // Block processing size
 
-// 双三次插值核函数
+// Bicubic interpolation kernel function
 double bicubic_kernel(double x) {
     x = abs(x);
     if(x <= 1.0) {
@@ -24,25 +24,25 @@ double bicubic_kernel(double x) {
     return 0.0;
 }
 
-// 计算图像块的特征
+// Extract patch features
 Mat extract_patch_features(const Mat& patch) {
     Mat features;
-    // DCT变换
+    // DCT transform
     Mat dct_patch;
     dct(patch, dct_patch);
-    // 取低频系数作为特征
+    // Use low-frequency coefficients as features
     features = dct_patch(Rect(0,0,8,8)).reshape(1,1);
     return features;
 }
 
-// 计算图像梯度
+// Calculate image gradients
 void compute_gradient(const Mat& src, Mat& dx, Mat& dy) {
-    // Sobel算子计算梯度
+    // Calculate gradients using Sobel operator
     Sobel(src, dx, CV_32F, 1, 0);
     Sobel(src, dy, CV_32F, 0, 1);
 }
 
-// 计算块相似度
+// Calculate patch similarity
 double compute_patch_similarity(
     const Mat& patch1,
     const Mat& patch2) {
@@ -53,32 +53,32 @@ double compute_patch_similarity(
 } // anonymous namespace
 
 Mat bicubic_sr(const Mat& src, float scale_factor) {
-    int new_rows = round(src.rows * scale_factor);
-    int new_cols = round(src.cols * scale_factor);
+    int new_rows = static_cast<int>(round(src.rows * scale_factor));
+    int new_cols = static_cast<int>(round(src.cols * scale_factor));
     Mat dst(new_rows, new_cols, src.type());
 
-    // 对每个通道进行插值
+    // Process each channel separately
     vector<Mat> channels;
     split(src, channels);
     vector<Mat> upscaled_channels;
 
     #pragma omp parallel for
-    for(int c = 0; c < channels.size(); c++) {
+    for(int c = 0; c < static_cast<int>(channels.size()); c++) {
         Mat upscaled(new_rows, new_cols, CV_32F);
 
-        // 双三次插值
+        // Bicubic interpolation
         for(int i = 0; i < new_rows; i++) {
             float y = i / scale_factor;
-            int y0 = floor(y);
+            int y0 = static_cast<int>(floor(y));
 
             for(int j = 0; j < new_cols; j++) {
                 float x = j / scale_factor;
-                int x0 = floor(x);
+                int x0 = static_cast<int>(floor(x));
 
                 double sum = 0;
                 double weight_sum = 0;
 
-                // 4x4邻域插值
+                // 4x4 neighborhood interpolation
                 for(int di = -1; di <= 2; di++) {
                     int yi = y0 + di;
                     if(yi < 0 || yi >= src.rows) continue;
@@ -97,7 +97,7 @@ Mat bicubic_sr(const Mat& src, float scale_factor) {
                     }
                 }
 
-                upscaled.at<float>(i,j) = sum / weight_sum;
+                upscaled.at<float>(i,j) = static_cast<float>(sum / weight_sum);
             }
         }
 
@@ -115,11 +115,11 @@ Mat sparse_sr(
     int dict_size,
     int patch_size) {
 
-    // 先使用双三次插值放大
+    // Use bicubic interpolation as initial estimate
     Mat initial = bicubic_sr(src, scale_factor);
     Mat result = initial.clone();
 
-    // 提取训练样本
+    // Extract training samples
     vector<Mat> patches;
     for(int i = 0; i <= src.rows-patch_size; i++) {
         for(int j = 0; j <= src.cols-patch_size; j++) {
@@ -128,22 +128,22 @@ Mat sparse_sr(
         }
     }
 
-    // 训练字典
+    // Train dictionary
     Mat dictionary(dict_size, patch_size*patch_size, CV_32F);
     for(int i = 0; i < dict_size; i++) {
-        int idx = rand() % patches.size();
+        int idx = rand() % static_cast<int>(patches.size());
         Mat feat = extract_patch_features(patches[idx]);
         feat.copyTo(dictionary.row(i));
     }
 
-    // 对每个块进行稀疏重建
-    #pragma omp parallel for collapse(2)
+    // Sparse reconstruction for each patch
+    #pragma omp parallel for
     for(int i = 0; i < result.rows-patch_size; i++) {
         for(int j = 0; j < result.cols-patch_size; j++) {
             Mat patch = result(Rect(j,i,patch_size,patch_size));
             Mat features = extract_patch_features(patch);
 
-            // 找到最相似的字典原子
+            // Find the most similar dictionary atom
             double min_dist = numeric_limits<double>::max();
             Mat best_atom;
 
@@ -156,7 +156,7 @@ Mat sparse_sr(
                 }
             }
 
-            // 重建
+            // Reconstruction
             Mat reconstructed;
             idct(best_atom.reshape(1,patch_size), reconstructed);
             reconstructed.copyTo(result(Rect(j,i,patch_size,patch_size)));
@@ -167,33 +167,33 @@ Mat sparse_sr(
 }
 
 Mat srcnn_sr(const Mat& src, float scale_factor) {
-    // 先使用双三次插值放大
+    // Use bicubic interpolation as initial estimate
     Mat initial = bicubic_sr(src, scale_factor);
     Mat result = initial.clone();
 
-    // SRCNN网络参数(简化版本)
+    // SRCNN network parameters (simplified version)
     const int conv1_size = 9;
     const int conv2_size = 1;
     const int conv3_size = 5;
 
-    // 第一层卷积
+    // First convolution layer
     Mat conv1;
     Mat kernel1 = getGaussianKernel(conv1_size, -1);
     kernel1 = kernel1 * kernel1.t();
     filter2D(result, conv1, -1, kernel1);
 
-    // 第二层卷积(1x1卷积模拟非线性映射)
+    // Second convolution layer (1x1 convolution for non-linear mapping)
     Mat conv2;
-    Mat kernel2 = Mat::ones(conv2_size, conv2_size, CV_32F) / (float)(conv2_size*conv2_size);
+    Mat kernel2 = Mat::ones(conv2_size, conv2_size, CV_32F) / static_cast<float>(conv2_size*conv2_size);
     filter2D(conv1, conv2, -1, kernel2);
 
-    // 第三层卷积(重建)
+    // Third convolution layer (reconstruction)
     Mat conv3;
     Mat kernel3 = getGaussianKernel(conv3_size, -1);
     kernel3 = kernel3 * kernel3.t();
     filter2D(conv2, conv3, -1, kernel3);
 
-    // 残差学习
+    // Residual learning
     result = conv3 + initial;
 
     return result;
@@ -205,31 +205,31 @@ Mat multi_frame_sr(
 
     if(frames.empty()) return Mat();
 
-    // 选择参考帧
+    // Select reference frame
     Mat reference = frames[frames.size()/2];
-    Size new_size(round(reference.cols * scale_factor),
-                  round(reference.rows * scale_factor));
+    Size new_size(static_cast<int>(round(reference.cols * scale_factor)),
+                  static_cast<int>(round(reference.rows * scale_factor)));
 
-    // 初始估计
+    // Initial estimate
     Mat result = bicubic_sr(reference, scale_factor);
 
-    // 对每帧进行配准和融合
+    // Registration and fusion for each frame
     for(const Mat& frame : frames) {
         if(frame.empty()) continue;
         if(frame.size() != reference.size()) continue;
 
-        // 计算光流
+        // Calculate optical flow
         Mat flow;
         calcOpticalFlowFarneback(reference, frame, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
 
-        // 根据光流进行配准
+        // Register based on flow
         Mat warped;
         remap(frame, warped, flow, Mat(), INTER_LINEAR);
 
-        // 上采样配准后的帧
+        // Upscale registered frame
         Mat upscaled = bicubic_sr(warped, scale_factor);
 
-        // 加权融合
+        // Weighted fusion
         double alpha = 0.5;
         addWeighted(result, 1-alpha, upscaled, alpha, 0, result);
     }
@@ -243,20 +243,20 @@ Mat adaptive_weight_sr(
     int patch_size,
     int search_window) {
 
-    // 初始估计
+    // Initial estimate
     Mat initial = bicubic_sr(src, scale_factor);
     Mat result = initial.clone();
     int half_patch = patch_size / 2;
     int half_window = search_window / 2;
 
-    // 对每个块进行自适应重建
-    #pragma omp parallel for collapse(2)
+    // Adaptive reconstruction for each patch
+    #pragma omp parallel for
     for(int i = half_patch; i < result.rows-half_patch; i++) {
         for(int j = half_patch; j < result.cols-half_patch; j++) {
             Mat ref_patch = result(Rect(j-half_patch, i-half_patch,
                                       patch_size, patch_size));
 
-            // 在搜索窗口内找相似块
+            // Find similar patches in search window
             vector<pair<Mat,double>> similar_patches;
 
             for(int di = -half_window; di <= half_window; di++) {
@@ -274,7 +274,7 @@ Mat adaptive_weight_sr(
                 }
             }
 
-            // 根据相似度计算权重并融合
+            // Calculate weights and fuse patches
             Mat weighted_sum = Mat::zeros(patch_size, patch_size, CV_32F);
             double weight_sum = 0;
 
@@ -301,25 +301,25 @@ Mat iterative_backprojection_sr(
     float scale_factor,
     int num_iterations) {
 
-    // 初始估计
+    // Initial estimate
     Mat result = bicubic_sr(src, scale_factor);
     Size low_size = src.size();
 
-    // 迭代优化
+    // Iterative optimization
     for(int iter = 0; iter < num_iterations; iter++) {
-        // 下采样当前估计
+        // Downsample current estimate
         Mat downscaled;
         resize(result, downscaled, low_size, 0, 0, INTER_AREA);
 
-        // 计算残差
+        // Calculate residual
         Mat diff = src - downscaled;
 
-        // 上采样残差
+        // Upsample residual
         Mat up_diff;
         resize(diff, up_diff, result.size(), 0, 0, INTER_CUBIC);
 
-        // 更新估计
-        result += 0.1 * up_diff;  // 步长0.1
+        // Update estimate
+        result += 0.1 * up_diff;  // Step size 0.1
     }
 
     return result;
@@ -330,23 +330,23 @@ Mat gradient_guided_sr(
     float scale_factor,
     float lambda) {
 
-    // 初始估计
+    // Initial estimate
     Mat result = bicubic_sr(src, scale_factor);
 
-    // 计算低分辨率图像的梯度
+    // Calculate gradients of low-resolution image
     Mat dx_low, dy_low;
     compute_gradient(src, dx_low, dy_low);
 
-    // 上采样梯度
+    // Upsample gradients
     resize(dx_low, dx_low, result.size(), 0, 0, INTER_CUBIC);
     resize(dy_low, dy_low, result.size(), 0, 0, INTER_CUBIC);
 
-    // 计算高分辨率图像的梯度
+    // Calculate gradients of high-resolution image
     Mat dx_high, dy_high;
     compute_gradient(result, dx_high, dy_high);
 
-    // 梯度引导的优化
-    #pragma omp parallel for collapse(2)
+    // Gradient-guided optimization
+    #pragma omp parallel for
     for(int i = 1; i < result.rows-1; i++) {
         for(int j = 1; j < result.cols-1; j++) {
             float gx_low = dx_low.at<float>(i,j);
@@ -354,11 +354,11 @@ Mat gradient_guided_sr(
             float gx_high = dx_high.at<float>(i,j);
             float gy_high = dy_high.at<float>(i,j);
 
-            // 梯度一致性约束
+            // Gradient consistency constraint
             float dx = lambda * (gx_high - gx_low);
             float dy = lambda * (gy_high - gy_low);
 
-            // 更新像素值
+            // Update pixel value
             result.at<uchar>(i,j) = saturate_cast<uchar>(
                 result.at<uchar>(i,j) - (dx + dy));
         }
@@ -373,18 +373,18 @@ Mat self_similarity_sr(
     int patch_size,
     int num_similar) {
 
-    // 初始估计
+    // Initial estimate
     Mat result = bicubic_sr(src, scale_factor);
     int half_patch = patch_size / 2;
 
-    // 对每个块进行自相似性重建
-    #pragma omp parallel for collapse(2)
+    // Self-similarity reconstruction for each patch
+    #pragma omp parallel for
     for(int i = half_patch; i < result.rows-half_patch; i++) {
         for(int j = half_patch; j < result.cols-half_patch; j++) {
             Mat ref_patch = result(Rect(j-half_patch, i-half_patch,
                                       patch_size, patch_size));
 
-            // 在全图范围内搜索相似块
+            // Search for similar patches across the entire image
             vector<pair<Mat,double>> similar_patches;
 
             for(int yi = half_patch; yi < result.rows-half_patch; yi++) {
@@ -395,11 +395,11 @@ Mat self_similarity_sr(
                                                patch_size, patch_size));
                     double dist = compute_patch_similarity(ref_patch, cand_patch);
 
-                    if(similar_patches.size() < num_similar) {
+                    if(similar_patches.size() < static_cast<size_t>(num_similar)) {
                         similar_patches.push_back({cand_patch, dist});
                     }
                     else {
-                        // 替换距离最大的patch
+                        // Replace patch with largest distance
                         auto max_it = max_element(similar_patches.begin(),
                                                 similar_patches.end(),
                                                 [](const auto& a, const auto& b) {
@@ -412,7 +412,7 @@ Mat self_similarity_sr(
                 }
             }
 
-            // 基于相似块进行重建
+            // Reconstruction based on similar patches
             Mat sum = Mat::zeros(patch_size, patch_size, CV_32F);
             double weight_sum = 0;
 

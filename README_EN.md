@@ -8,97 +8,31 @@ IP101 is a comprehensive tutorial series focused on fundamental knowledge, opera
 
 ```
 IP101/
-├── docs/                # Documentation
-│   ├── basic/          # Basic questions documentation
-│   │   ├── color_operations.md      # Color Operations
-│   │   ├── filtering.md             # Image Filtering
-│   │   ├── edge_detection.md        # Edge Detection
-│   │   ├── image_transform.md       # Image Transformation
-│   │   ├── image_enhancement.md     # Image Enhancement
-│   │   ├── feature_extraction.md    # Feature Extraction
-│   │   ├── image_segmentation.md    # Image Segmentation
-│   │   ├── morphology.md            # Morphological Operations
-│   │   ├── frequency_domain.md      # Frequency Domain Processing
-│   │   ├── image_compression.md     # Image Compression
-│   │   ├── image_features.md        # Image Features
-│   │   ├── image_matching.md        # Image Matching
-│   │   ├── connected_components.md  # Connected Components Analysis
-│   │   ├── thinning.md             # Image Thinning
-│   │   ├── object_detection.md      # Object Detection
-│   │   ├── image_pyramid.md         # Image Pyramid
-│   │   ├── texture_analysis.md      # Texture Analysis
-│   │   ├── image_inpainting.md      # Image Inpainting
-│   │   ├── image_quality.md         # Image Quality Assessment
-│   │   └── super_resolution.md      # Super Resolution
-│   └── advanced/       # Advanced algorithms documentation
-│       ├── image_enhancement/        # Image Enhancement Algorithms
-│       ├── image_correction/         # Image Correction Algorithms
-│       ├── image_dehazing/          # Image Dehazing Algorithms
-│       ├── advanced_filtering/       # Advanced Filtering Algorithms
-│       ├── special_detection/        # Special Object Detection
-│       └── image_effects/           # Image Effect Algorithms
+├── include/            # Header files
+│   └── basic/         # Basic algorithm headers
+├── docs/               # Documentation
+│   ├── algorithms/    # Algorithm documentation
+│   ├── tutorials/     # Tutorials
+│   └── optimization/  # Optimization techniques
 ├── python/             # Python implementation
 │   ├── basic/          # Basic questions code
 │   │   ├── color_operations.py      # Color operations algorithms
 │   │   ├── filtering.py             # Image filtering algorithms
 │   │   ├── edge_detection.py        # Edge detection algorithms
-│   │   ├── image_transform.py       # Image transformation algorithms
-│   │   ├── image_enhancement.py     # Image enhancement algorithms
-│   │   ├── feature_extraction.py    # Feature extraction algorithms
-│   │   ├── image_segmentation.py    # Image segmentation algorithms
-│   │   ├── morphology.py            # Morphological operations
-│   │   ├── frequency_domain.py      # Frequency domain processing
-│   │   ├── image_compression.py     # Image compression algorithms
-│   │   ├── image_features.py        # Image feature algorithms
-│   │   ├── image_matching.py        # Image matching algorithms
-│   │   ├── connected_components.py  # Connected components analysis
-│   │   ├── thinning.py             # Image thinning algorithms
-│   │   ├── object_detection.py      # Object detection algorithms
-│   │   ├── image_pyramid.py         # Image pyramid algorithms
-│   │   ├── texture_analysis.py      # Texture analysis algorithms
-│   │   ├── image_inpainting.py      # Image inpainting algorithms
-│   │   ├── image_quality.py         # Image quality assessment
-│   │   └── super_resolution.py      # Super resolution algorithms
+│   │   └── ...                      # Other algorithms
 │   └── advanced/       # Advanced algorithms code
-│       ├── image_enhancement/        # Image Enhancement Algorithms
-│       ├── image_correction/         # Image Correction Algorithms
-│       ├── image_dehazing/          # Image Dehazing Algorithms
-│       ├── advanced_filtering/       # Advanced Filtering Algorithms
-│       ├── special_detection/        # Special Object Detection
-│       └── image_effects/           # Image Effect Algorithms
 ├── cpp/                # C++ implementation
 │   ├── basic/          # Basic questions code
 │   │   ├── color_operations.cpp     # Color operations algorithms
 │   │   ├── filtering.cpp            # Image filtering algorithms
 │   │   ├── edge_detection.cpp       # Edge detection algorithms
-│   │   ├── image_transform.cpp      # Image transformation algorithms
-│   │   ├── image_enhancement.cpp    # Image enhancement algorithms
-│   │   ├── feature_extraction.cpp   # Feature extraction algorithms
-│   │   ├── image_segmentation.cpp   # Image segmentation algorithms
-│   │   ├── morphology.cpp           # Morphological operations
-│   │   ├── frequency_domain.cpp     # Frequency domain processing
-│   │   ├── image_compression.cpp    # Image compression algorithms
-│   │   ├── image_features.cpp       # Image feature algorithms
-│   │   ├── image_matching.cpp       # Image matching algorithms
-│   │   ├── connected_components.cpp # Connected components analysis
-│   │   ├── thinning.cpp            # Image thinning algorithms
-│   │   ├── object_detection.cpp     # Object detection algorithms
-│   │   ├── image_pyramid.cpp        # Image pyramid algorithms
-│   │   ├── texture_analysis.cpp     # Texture analysis algorithms
-│   │   ├── image_inpainting.cpp     # Image inpainting algorithms
-│   │   ├── image_quality.cpp        # Image quality assessment
-│   │   └── super_resolution.cpp     # Super resolution algorithms
+│   │   └── ...                      # Other algorithms
 │   └── advanced/       # Advanced algorithms code
-│       ├── image_enhancement/        # Image Enhancement Algorithms
-│       ├── image_correction/         # Image Correction Algorithms
-│       ├── image_dehazing/          # Image Dehazing Algorithms
-│       ├── advanced_filtering/       # Advanced Filtering Algorithms
-│       ├── special_detection/        # Special Object Detection
-│       └── image_effects/           # Image Effect Algorithms
 ├── examples/           # Example code
 │   ├── basic/          # Basic questions examples
 │   └── advanced/       # Advanced algorithms examples
-└── images/             # Example images
+├── assets/             # Asset files
+└── tests/              # Test code
 ```
 
 ## Features
@@ -301,6 +235,27 @@ IP101/
 | Q99 | Multi-frame SR | ⭐⭐⭐ | [Python](python/basic/super_resolution.py) / [C++](cpp/basic/super_resolution.cpp) |
 | Q100 | Real-time SR | ⭐⭐⭐ | [Python](python/basic/super_resolution.py) / [C++](cpp/basic/super_resolution.cpp) |
 
+## Advanced Content Overview
+
+1. **Algorithm Documentation** - `docs/algorithms/`
+   - Algorithm Principles
+   - Mathematical Model Analysis
+   - Algorithm Complexity Assessment
+   - Real-world Application Scenarios
+
+2. **Tutorials** - `docs/tutorials/`
+   - Image Processing Introduction
+   - Development Environment Setup
+   - Algorithm Implementation Guides
+   - Performance Optimization Methods
+
+3. **Optimization Techniques** - `docs/optimization/`
+   - Multi-threading Optimization
+   - SIMD Vectorization
+   - GPU Acceleration
+   - Memory Optimization
+   - Algorithm Improvements
+
 ## Advanced Algorithm List
 
 ### 1. Image Enhancement Algorithms
@@ -355,7 +310,7 @@ IP101/
 | Skin Beauty | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/skin_beauty.py) / [C++](cpp/advanced/SkinBeauty.cpp) |
 | Unsharp Masking | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/usm.py) / [C++](cpp/advanced/UnsharpMasking.cpp) |
 
-## Getting Started
+## Usage
 
 1. Clone the repository:
 ```bash
@@ -367,46 +322,19 @@ git clone https://github.com/GlimmerLab/IP101.git
 pip install -r requirements.txt
 ```
 
-3. Choose programming language:
+3. Choose your programming language:
    - Python users: Run Python files directly
    - C++ users: Configure OpenCV environment first
 
 4. Run examples:
 ```bash
-# Basic question example
+# Basic questions examples
 python python/basic/color_operations.py 1  # Run question 1 in color operations
 python python/basic/filtering.py 6         # Run question 6 in filtering
 
-# Advanced algorithm example
+# Advanced algorithm examples
 python python/advanced/retinex_msrcr.py
 ```
-
-## Advanced Content Overview
-
-1. Image Correction Algorithms
-   - Auto Level Adjustment
-   - Auto Contrast Adjustment
-   - Uneven Illumination Correction
-
-2. Image Filtering Algorithms
-   - Median Filter
-   - Guided Filter
-   - Bilateral Filter
-
-3. Feature Extraction Algorithms
-   - SIFT Features
-   - SURF Features
-   - ORB Features
-
-4. Color Space Conversion
-   - RGB to HSV
-   - RGB to LAB
-   - RGB to YUV
-
-5. Algorithm Optimization
-   - Multi-threading Optimization
-   - GPU Acceleration
-   - SIMD Optimization
 
 ## Contributing
 
