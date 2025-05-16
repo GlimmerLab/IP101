@@ -336,6 +336,74 @@ python python/basic/filtering.py 6         # Run question 6 in filtering
 python python/advanced/retinex_msrcr.py
 ```
 
+### C++ Project Building and Usage
+
+1. Environment setup:
+   - Install C++ compiler (such as GCC, Visual Studio, Clang)
+   - Install CMake (version 3.10 or higher)
+   - Install OpenCV library (version 4.0 or higher recommended)
+
+2. Build the project:
+```bash
+# Create a build folder in the project root directory
+mkdir build && cd build
+
+# Configure with CMake (auto find OpenCV)
+cmake ..
+
+# Or manually specify OpenCV path
+cmake -DOPENCV_DIR=/path/to/opencv/build ..
+
+# Compile
+cmake --build . --config Release
+```
+
+   **Tip**: You can also set the OpenCV path directly in the main CMakeLists.txt file:
+   ```cmake
+   # Open CMakeLists.txt, find the following section and uncomment, modify to your OpenCV path
+   # set(OpenCV_DIR "D:/opencv/build")    # Windows example path
+   # set(OpenCV_DIR "/usr/local/opencv4") # Linux example path
+   ```
+
+3. Run C++ examples:
+```bash
+# Run basic examples
+./examples/basic_example
+
+# Run specific algorithm tests
+./examples/basic/color_operations_test
+./examples/basic/filtering_test
+```
+
+4. Develop your own applications:
+```cpp
+// my_app.cpp
+#include <opencv2/opencv.hpp>
+#include <basic/color_operations.hpp>
+#include <basic/filtering.hpp>
+
+int main() {
+    cv::Mat image = cv::imread("your_image.jpg");
+    cv::Mat gray, filtered;
+
+    // Use the grayscale conversion function from the library
+    ip101::to_gray(image, gray);
+
+    // Use Gaussian filter
+    ip101::gaussian_filter(gray, filtered, 3, 1.0);
+
+    cv::imshow("Filtered Image", filtered);
+    cv::waitKey(0);
+
+    return 0;
+}
+```
+
+5. Compile custom applications:
+```bash
+g++ -std=c++17 my_app.cpp -o my_app -I/path/to/IP101/include `pkg-config --cflags --libs opencv4`
+```
+
 ## Contributing
 
 1. Fork the repository
@@ -353,28 +421,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 IP101 references and draws inspiration from the following projects:
 
 - [BBuf/Image-processing-algorithm](https://github.com/BBuf/Image-processing-algorithm)
-  - Provides rich implementations of image processing algorithms
 
 - [gzr2017/ImageProcessing100Wen](https://github.com/gzr2017/ImageProcessing100Wen)
-  - Provides the basic framework for Chinese version of Image Processing 100 Questions
-  - Provides detailed problem descriptions and implementation ideas
 
 - [KuKuXia/Image_Processing_100_Questions](https://github.com/KuKuXia/Image_Processing_100_Questions)
-  - Provides English translation reference for Image Processing 100 Questions
-  - Supplements additional algorithm implementations and examples
 
 - [ryoppippi/Gasyori100knock](https://github.com/ryoppippi/Gasyori100knock)
-  - Provides the original Japanese version of Image Processing 100 Questions
-  - Provides basic test images and validation data
 
 - [OpenCV](https://github.com/opencv/opencv)
-  - Provides reference implementations of image processing algorithms
-  - Provides performance optimization ideas
 
 - [scikit-image](https://github.com/scikit-image/scikit-image)
-  - Provides Python implementation references for image processing algorithms
-  - Provides methodology for algorithm testing
 
 - [SimpleCV](https://github.com/sightmachine/SimpleCV)
-  - Provides clean image processing interface design reference
-  - Provides teaching-friendly code organization
