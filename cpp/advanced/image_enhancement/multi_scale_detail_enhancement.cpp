@@ -1,4 +1,4 @@
-#include "multi_scale_detail_enhancement.hpp"
+#include <advanced/enhancement/multi_scale_detail_enhancement.hpp>
 #include <cmath>
 #include <omp.h>
 

@@ -1,4 +1,4 @@
-#include "motion_blur.hpp"
+#include <advanced/effects/motion_blur.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

@@ -1,4 +1,4 @@
-#include "oil_painting_effect.hpp"
+#include <advanced/effects/oil_painting_effect.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

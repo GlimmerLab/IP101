@@ -1,4 +1,4 @@
-#include "adaptive_logarithmic_mapping.hpp"
+#include <advanced/enhancement/adaptive_logarithmic_mapping.hpp>
 #include <cmath>
 #include <omp.h>
 

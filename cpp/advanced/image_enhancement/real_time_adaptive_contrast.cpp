@@ -1,4 +1,4 @@
-#include "real_time_adaptive_contrast.hpp"
+#include <advanced/enhancement/real_time_adaptive_contrast.hpp>
 #include <cmath>
 #include <omp.h>
 

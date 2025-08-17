@@ -1,4 +1,4 @@
-#include "illumination_correction.hpp"
+#include <advanced/correction/illumination_correction.hpp>
 #include <vector>
 #include <cmath>
 #include <omp.h>

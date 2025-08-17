@@ -1,4 +1,4 @@
-#include "gamma_correction.hpp"
+#include <advanced/correction/gamma_correction.hpp>
 #include <vector>
 #include <cmath>
 #include <omp.h>

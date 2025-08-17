@@ -17,6 +17,7 @@ dist/
 # IDE文件
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -35,6 +36,7 @@ htmlcov/
 # 文档
 docs/html/
 docs/latex/
+docs/
 
 # 临时文件
 *.tmp

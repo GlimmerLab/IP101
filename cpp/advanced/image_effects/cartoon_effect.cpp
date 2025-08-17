@@ -1,4 +1,4 @@
-#include "cartoon_effect.hpp"
+#include <advanced/effects/cartoon_effect.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

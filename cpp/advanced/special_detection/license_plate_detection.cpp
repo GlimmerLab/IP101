@@ -1,4 +1,4 @@
-#include "license_plate_detection.hpp"
+#include <advanced/detection/license_plate_detection.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

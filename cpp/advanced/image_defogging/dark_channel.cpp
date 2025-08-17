@@ -1,4 +1,4 @@
-#include "dark_channel.hpp"
+#include <advanced/defogging/dark_channel.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

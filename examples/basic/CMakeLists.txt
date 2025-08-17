@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
-project(ip101_basic_examples)
+# 基础算法示例程序
 
 # 测试示例列表
 set(TEST_EXAMPLES

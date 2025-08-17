@@ -1,48 +1,100 @@
 # IP101 - 图像处理基础100问
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/GlimmerLab/IP101)
+[![Language](https://img.shields.io/badge/language-C%2B%2B%20%7C%20Python-orange.svg)](https://github.com/GlimmerLab/IP101)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.0+-green.svg)](https://opencv.org/)
+[![CMake](https://img.shields.io/badge/CMake-3.10+-red.svg)](https://cmake.org/)
+
 [English](README_EN.md) | 简体中文
 
 IP101 是一个专注于图像处理基础知识、操作、应用和优化的系列教程。本系列旨在通过100个精心设计的问题，帮助读者全面掌握图像处理的核心概念和实践技能。
+
+## 🚀 快速开始
+
+```bash
+# 克隆项目
+git clone https://github.com/GlimmerLab/IP101.git
+cd IP101
+
+# Python用户：直接运行
+python python/basic/color_operations.py 1
+
+# C++用户：构建项目
+mkdir build && cd build
+cmake ..
+cmake --build . --config Release
+./examples/basic/color_operations_test
+```
+
+## 📋 目录
+- [项目结构](#项目结构)
+- [内容特点](#内容特点)
+- [基础问题分类](#基础问题分类)
+- [进阶算法列表](#进阶算法列表)
+- [使用说明](#使用说明)
+- [贡献指南](#贡献指南)
 
 ## 项目结构
 
 ```
 IP101/
 ├── include/            # 头文件目录
-│   └── basic/         # 基础算法头文件
-├── docs/               # 文档目录
-│   ├── algorithms/    # 算法文档
-│   ├── tutorials/     # 教程文档
-│   └── optimization/  # 优化技术文档
-├── python/             # Python实现
-│   ├── basic/          # 基础问题代码
-│   │   ├── color_operations.py      # 颜色操作相关算法
-│   │   ├── filtering.py             # 图像滤波相关算法
-│   │   ├── edge_detection.py        # 边缘检测相关算法
-│   │   └── ...                      # 其他算法
-│   └── advanced/       # 进阶算法代码
+│   ├── basic/         # 基础算法头文件
+│   └── advanced/      # 进阶算法头文件
+│       ├── correction/    # 图像校正算法
+│       ├── defogging/     # 图像去雾算法
+│       ├── detection/     # 特殊检测算法
+│       ├── effects/       # 图像特效算法
+│       ├── enhancement/   # 图像增强算法
+│       └── filtering/     # 高级滤波算法
 ├── cpp/                # C++实现
 │   ├── basic/          # 基础问题代码
-│   │   ├── color_operations.cpp     # 颜色操作相关算法
-│   │   ├── filtering.cpp            # 图像滤波相关算法
-│   │   ├── edge_detection.cpp       # 边缘检测相关算法
-│   │   └── ...                      # 其他算法
 │   └── advanced/       # 进阶算法代码
+│       ├── image_correction/    # 图像校正
+│       ├── image_defogging/     # 图像去雾
+│       ├── image_effects/       # 图像特效
+│       ├── image_enhancement/   # 图像增强
+│       ├── advanced_filtering/  # 高级滤波
+│       └── special_detection/   # 特殊检测
+├── python/             # Python实现
+│   ├── basic/          # 基础问题代码
+│   ├── advanced/       # 进阶算法代码
+│   ├── image_processing/   # 图像处理工具
+│   └── tests/          # 测试代码
 ├── examples/           # 示例代码
 │   ├── basic/          # 基础问题示例
 │   └── advanced/       # 进阶算法示例
-├── assets/             # 资源文件
-└── tests/              # 测试代码
+├── docs/               # 文档目录
+│   ├── algorithms/     # 算法文档
+│   ├── tutorials/      # 教程文档
+│   └── optimization/   # 优化技术文档
+├── gui/                # GUI界面
+├── tests/              # 测试代码
+├── utils/              # 工具函数
+├── third_party/        # 第三方依赖
+│   ├── glfw/           # GLFW库
+│   └── imgui/          # ImGui库
+├── cmake/              # CMake配置
+└── assets/             # 资源文件
 ```
 
-## 内容特点
+## ✨ 项目特色
 
-- 基础到进阶的完整学习路径
-- 理论与实践相结合
-- 丰富的代码示例
-- 实际应用场景分析
-- 性能优化技巧
-- **实现方式**：所有算法均为手动实现，不使用OpenCV内置函数，帮助理解算法原理
+### 🎯 教学导向
+- **手动实现**：所有算法均为手动实现，不使用OpenCV内置函数，帮助理解算法原理
+- **循序渐进**：从基础到进阶的完整学习路径
+- **理论与实践结合**：每个算法都配有详细的数学原理说明
+
+### 🚀 技术优势
+- **高性能**：C++实现支持SIMD优化和多线程加速
+- **跨平台**：支持Windows、Linux、macOS
+- **易扩展**：模块化设计，便于添加新算法
+
+### 📚 内容丰富
+- **100个基础问题**：涵盖图像处理的各个领域
+- **30+进阶算法**：包含最新的研究算法
+- **双语支持**：中英文文档和代码注释
 
 ## 支持的语言
 
@@ -51,7 +103,6 @@ IP101/
 | Python | ✅ | 完整支持，包含所有100个问题的解答 |
 | C++ | ✅ | 完整支持，包含所有100个问题的解答 |
 | MATLAB | ❌ | 暂不支持 |
-| Java | ❌ | 暂不支持 |
 
 ## 基础问题分类
 
@@ -240,75 +291,79 @@ IP101/
 ### 1. 图像增强算法
 | 算法名称 | 类别 | Python | C++ | 难度等级 | 代码索引 |
 |----------|------|---------|-----|----------|----------|
-| Retinex MSRCR | 图像增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/retinex_msrcr.py) / [C++](cpp/advanced/Retinex_MSRCR.cpp) |
+| Retinex MSRCR | 图像增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/retinex_msrcr.py) / [C++](cpp/advanced/image_enhancement/retinex_msrcr.cpp) |
 | HDR | 高动态范围 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/hdr.py) / [C++](cpp/advanced/HDR.cpp) |
-| 自适应对数映射 | 高动态范围 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/adaptive_logarithmic.py) / [C++](cpp/advanced/AdaptiveLogarithmicMapping.cpp) |
-| 多尺度细节增强 | 图像增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/detail_boosting.py) / [C++](cpp/advanced/MultiScaleDetailBoosting.cpp) |
-| 实时自适应对比度 | 图像增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/adaptive_contrast.py) / [C++](cpp/advanced/RealTimeAdaptiveContrast.cpp) |
-| 自动色彩均衡(ACE) | 色彩增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/ace.py) / [C++](cpp/advanced/AutomaticColorEqualization.cpp) |
+| 自适应对数映射 | 高动态范围 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/adaptive_logarithmic_mapping.py) / [C++](cpp/advanced/image_enhancement/adaptive_logarithmic_mapping.cpp) |
+| 多尺度细节增强 | 图像增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/multi_scale_detail_enhancement.py) / [C++](cpp/advanced/image_enhancement/multi_scale_detail_enhancement.cpp) |
+| 实时自适应对比度 | 图像增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/real_time_adaptive_contrast.py) / [C++](cpp/advanced/image_enhancement/real_time_adaptive_contrast.cpp) |
+| 自动色彩均衡(ACE) | 色彩增强 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/automatic_color_equalization.py) / [C++](cpp/advanced/image_enhancement/automatic_color_equalization.cpp) |
 
 ### 2. 图像矫正算法
 | 算法名称 | 类别 | Python | C++ | 难度等级 | 代码索引 |
 |----------|------|---------|-----|----------|----------|
-| 自动白平衡 | 色彩校正 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/auto_white_balance.py) / [C++](cpp/advanced/AutomaticWhiteBalanceMethod.cpp) |
-| 自动色阶调整 | 色彩校正 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/auto_level.py) / [C++](cpp/advanced/AutoLevelAndAutoContrast.cpp) |
-| 光照不均匀校正 | 图像矫正 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/illumination_correction.py) / [C++](cpp/advanced/IlluminationCorrection.cpp) |
-| 逆光图像恢复 | 图像恢复 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/backlight.py) / [C++](cpp/advanced/Inrbl.cpp) |
-| 二维伽马校正 | 图像矫正 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/gamma_correction.py) / [C++](cpp/advanced/TwoDimensionalGamma.cpp) |
+| 自动白平衡 | 色彩校正 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/automatic_white_balance.py) / [C++](cpp/advanced/image_correction/automatic_white_balance.cpp) |
+| 自动色阶调整 | 色彩校正 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/auto_level_adjustment.py) / [C++](cpp/advanced/image_correction/auto_level.cpp) |
+| 光照不均匀校正 | 图像矫正 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/illumination_correction.py) / [C++](cpp/advanced/image_correction/illumination_correction.cpp) |
+| 逆光图像恢复 | 图像恢复 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/backlight_correction.py) / [C++](cpp/advanced/image_correction/backlight.cpp) |
+| 二维伽马校正 | 图像矫正 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/gamma_correction.py) / [C++](cpp/advanced/image_correction/gamma_correction.cpp) |
 
 ### 3. 图像去雾算法
 | 算法名称 | 类别 | Python | C++ | 难度等级 | 代码索引 |
 |----------|------|---------|-----|----------|----------|
-| 暗通道去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/dark_channel.py) / [C++](cpp/advanced/DarkChannelPrior.cpp) |
-| 导向滤波去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/GuidedFilterDehazing.cpp) |
-| 中值滤波去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/median_filter.py) / [C++](cpp/advanced/MedianFilterFogRemoval.cpp) |
-| 快速单图去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/fast_defogging.py) / [C++](cpp/advanced/FastDefogging.cpp) |
-| 实时视频去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/realtime_dehazing.py) / [C++](cpp/advanced/RealtimeDehazing.cpp) |
+| 暗通道去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/dark_channel_dehazing.py) / [C++](cpp/advanced/image_defogging/dark_channel.cpp) |
+| 导向滤波去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/image_defogging/guided_filter.cpp) |
+| 中值滤波去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/median_filter_defogging.py) / [C++](cpp/advanced/image_defogging/median_filter.cpp) |
+| 快速单图去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/fast_defogging.py) / [C++](cpp/advanced/image_defogging/fast_defogging.cpp) |
+| 实时视频去雾 | 图像去雾 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/realtime_dehazing.py) / [C++](cpp/advanced/image_defogging/realtime_dehazing.cpp) |
 
 ### 4. 高级滤波算法
 | 算法名称 | 类别 | Python | C++ | 难度等级 | 代码索引 |
 |----------|------|---------|-----|----------|----------|
-| 导向滤波 | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/GuidedFilter.cpp) |
-| 侧窗口滤波(Box) | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window.py) / [C++](cpp/advanced/BoxSideWindowFilter.cpp) |
-| 侧窗口滤波(Median) | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window.py) / [C++](cpp/advanced/MedianSideWindowFilter.cpp) |
-| 同态滤波 | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/homomorphic.py) / [C++](cpp/advanced/HomomorphicFilter.cpp) |
+| 导向滤波 | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/advanced_filtering/guided_filter.cpp) |
+| 侧窗口滤波(Box) | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window_filter.py) / [C++](cpp/advanced/advanced_filtering/side_window_filter.cpp) |
+| 侧窗口滤波(Median) | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window_filter.py) / [C++](cpp/advanced/advanced_filtering/side_window_filter.cpp) |
+| 同态滤波 | 图像滤波 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/homomorphic_filter.py) / [C++](cpp/advanced/advanced_filtering/homomorphic_filter.cpp) |
 
 ### 5. 特殊目标检测
 | 算法名称 | 类别 | Python | C++ | 难度等级 | 代码索引 |
 |----------|------|---------|-----|----------|----------|
-| 矩形检测 | 目标检测 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/rectangle_detection.py) / [C++](cpp/advanced/RectangleDetection.cpp) |
-| 车牌检测 | 目标检测 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/license_plate.py) / [C++](cpp/advanced/LicensePlateDetection.cpp) |
-| 偏色检测 | 图像检测 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/color_cast.py) / [C++](cpp/advanced/ColorCastDetection.cpp) |
+| 矩形检测 | 目标检测 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/rectangle_detection.py) / [C++](cpp/advanced/special_detection/rectangle_detection.cpp) |
+| 车牌检测 | 目标检测 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/license_plate_detection.py) / [C++](cpp/advanced/special_detection/license_plate_detection.cpp) |
+| 偏色检测 | 图像检测 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/color_cast_detection.py) / [C++](cpp/advanced/special_detection/color_cast_detection.cpp) |
 
 ### 6. 图像特效算法
 | 算法名称 | 类别 | Python | C++ | 难度等级 | 代码索引 |
 |----------|------|---------|-----|----------|----------|
-| 老照片特效 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/vintage_effect.py) / [C++](cpp/advanced/VintageEffect.cpp) |
-| 运动模糊 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/motion_blur.py) / [C++](cpp/advanced/MotionBlur.cpp) |
-| 球面化效果 | 图像特效 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/spherize.py) / [C++](cpp/advanced/Spherize.cpp) |
-| 磨皮美白 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/skin_beauty.py) / [C++](cpp/advanced/SkinBeauty.cpp) |
-| 钝化蒙版 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/usm.py) / [C++](cpp/advanced/UnsharpMasking.cpp) |
+| 老照片特效 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/vintage_effect.py) / [C++](cpp/advanced/image_effects/vintage_effect.cpp) |
+| 运动模糊 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/motion_blur_effect.py) / [C++](cpp/advanced/image_effects/motion_blur.cpp) |
+| 球面化效果 | 图像特效 | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/spherize_effect.py) / [C++](cpp/advanced/image_effects/spherize.cpp) |
+| 磨皮美白 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/skin_beauty.py) / [C++](cpp/advanced/image_effects/skin_beauty.cpp) |
+| 钝化蒙版 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/unsharp_masking.py) / [C++](cpp/advanced/image_effects/unsharp_masking.cpp) |
+| 油画效果 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/oil_painting_effect.py) / [C++](cpp/advanced/image_effects/oil_painting_effect.cpp) |
+| 卡通效果 | 图像特效 | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/cartoon_effect.py) / [C++](cpp/advanced/image_effects/cartoon_effect.cpp) |
 
-## 进阶内容说明
+## 📚 文档与教程
 
-1. **算法文档** - `docs/algorithms/`
-   - 算法原理详解
-   - 数学模型分析
-   - 算法复杂度评估
-   - 实际应用场景说明
+### 📖 算法文档 (`docs/algorithms/`)
+详细的技术文档，包含：
+- **算法原理**：数学推导和核心思想
+- **复杂度分析**：时间和空间复杂度评估
+- **应用场景**：实际使用案例和最佳实践
+- **参数调优**：算法参数选择和优化建议
 
-2. **教程文档** - `docs/tutorials/`
-   - 图像处理入门指南
-   - 开发环境配置教程
-   - 算法实践教程
-   - 性能优化方法
+### 🎓 学习教程 (`docs/tutorials/`)
+从入门到精通的完整学习路径：
+- **环境配置**：开发环境搭建指南
+- **基础入门**：图像处理基础概念
+- **实践案例**：手把手算法实现教程
+- **性能分析**：代码性能评估和优化
 
-3. **优化技术** - `docs/optimization/`
-   - 多线程优化
-   - SIMD向量化
-   - GPU加速
-   - 内存优化
-   - 算法改进
+### ⚡ 性能优化 (`docs/optimization/`)
+高级优化技术指南：
+- **多线程并行**：OpenMP和线程池优化
+- **SIMD向量化**：CPU指令集优化
+- **内存管理**：缓存友好的数据结构
+- **算法改进**：数学优化和近似算法
 
 ## 使用说明
 
@@ -375,6 +430,11 @@ cmake --build . --config Release
 ./examples/basic/filtering_test
 ```
 
+**提示**：
+- 确保在正确的构建目录下执行可执行文件（如 `build/Release/` 或 `build/Debug/`）
+- **Windows用户特别注意**：需要将OpenCV的DLL文件（如 `opencv_world4xx.dll`）复制到可执行文件所在目录，或添加到系统PATH环境变量中
+- 如果遇到"找不到opencv_world4xx.dll"错误，请检查OpenCV的bin目录是否在PATH中，或手动复制DLL文件到程序目录
+
 4. 开发自己的应用:
 ```cpp
 // my_app.cpp
@@ -404,13 +464,36 @@ int main() {
 g++ -std=c++17 my_app.cpp -o my_app -I/path/to/IP101/include `pkg-config --cflags --libs opencv4`
 ```
 
-## 贡献指南
+## ❓ 常见问题
+
+### Q: 为什么选择手动实现而不是使用OpenCV内置函数？
+A: 手动实现有助于深入理解算法原理，这是本项目的教学特色。在实际项目中，您可以根据需要选择使用OpenCV内置函数。
+
+### Q: 如何选择合适的编程语言？
+A:
+- **Python**: 适合快速原型开发和算法验证
+- **C++**: 适合性能要求高的生产环境
+
+### Q: Windows下遇到DLL错误怎么办？
+A: 请参考[使用说明](#使用说明)中的Windows特定提示，确保OpenCV DLL文件在正确位置。
+
+### Q: 如何贡献代码？
+A: 欢迎提交Issue和Pull Request！请参考下面的贡献指南。
+
+## 🤝 贡献指南
 
 1. Fork 本仓库
 2. 创建新的分支: `git checkout -b feature/your-feature`
 3. 提交更改: `git commit -am 'Add some feature'`
 4. 推送到分支: `git push origin feature/your-feature`
 5. 提交 Pull Request
+
+### 贡献类型
+- 🐛 Bug修复
+- ✨ 新功能添加
+- 📚 文档改进
+- 🎨 代码优化
+- 🧪 测试用例
 
 ## 许可证
 
@@ -420,16 +503,20 @@ g++ -std=c++17 my_app.cpp -o my_app -I/path/to/IP101/include `pkg-config --cflag
 
 IP101 参考和借鉴了下列项目：
 
+### 🖼️ 图像处理算法参考
 - [BBuf/Image-processing-algorithm](https://github.com/BBuf/Image-processing-algorithm)
-
 - [gzr2017/ImageProcessing100Wen](https://github.com/gzr2017/ImageProcessing100Wen)
-
 - [KuKuXia/Image_Processing_100_Questions](https://github.com/KuKuXia/Image_Processing_100_Questions)
-
 - [ryoppippi/Gasyori100knock](https://github.com/ryoppippi/Gasyori100knock)
 
-- [OpenCV](https://github.com/opencv/opencv)
+### 🔧 核心依赖库
+- [OpenCV](https://github.com/opencv/opencv) - 计算机视觉库
+- [scikit-image](https://github.com/scikit-image/scikit-image) - Python图像处理库
+- [SimpleCV](https://github.com/sightmachine/SimpleCV) - 计算机视觉框架
 
-- [scikit-image](https://github.com/scikit-image/scikit-image)
+### 🖥️ GUI界面依赖
+- [GLFW](https://github.com/glfw/glfw) - 跨平台OpenGL上下文和窗口管理库
+- [Dear ImGui](https://github.com/ocornut/imgui) - 轻量级即时模式图形用户界面库
 
-- [SimpleCV](https://github.com/sightmachine/SimpleCV)
+### 📚 学习资源
+- [imageshop](https://www.cnblogs.com/imageshop) - 图像处理技术博客

@@ -1,4 +1,4 @@
-#include "automatic_white_balance.hpp"
+#include <advanced/correction/automatic_white_balance.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

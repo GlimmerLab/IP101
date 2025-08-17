@@ -7,7 +7,7 @@
  * HDR算法就像一位调和光影的画家，把多张不同曝光的照片，融合成一幅明暗有度、细节丰富的画卷。
  */
 
-#include "hdr.hpp"
+#include <advanced/enhancement/hdr.hpp>
 #include <cmath>
 #include <random>
 #include <algorithm>
@@ -205,7 +205,7 @@ cv::Mat tone_mapping_local(const cv::Mat& hdr_image, float sigma, float contrast
     cv::Mat base_layer;
     cv::bilateralFilter(log_luminance, base_layer, -1, sigma * 3, sigma);
     cv::Mat detail_layer = log_luminance - base_layer;
-    float log_min, log_max;
+    double log_min, log_max;
     cv::minMaxLoc(base_layer, &log_min, &log_max);
     cv::Mat compressed_base = (base_layer - log_max) * contrast / (log_max - log_min);
     cv::Mat log_output = compressed_base + detail_layer;
@@ -325,7 +325,6 @@ cv::Mat create_hdr_optimized(const std::vector<cv::Mat>& images,
             float pixel_values[3] = {0.0f, 0.0f, 0.0f};
             for (size_t i = 0; i < images.size(); i++) {
                 const cv::Vec3b& pixel = images[i].at<cv::Vec3b>(y, x);
-                #pragma omp simd
                 for (int c = 0; c < channels; c++) {
                     float weight = weight_function(pixel[c]);
                     float radiance = camera_response.at<float>(pixel[c], c) - std::log(exposure_times[i]);
@@ -333,7 +332,6 @@ cv::Mat create_hdr_optimized(const std::vector<cv::Mat>& images,
                     sum_weights[c] += weight;
                 }
             }
-            #pragma omp simd
             for (int c = 0; c < channels; c++) {
                 if (sum_weights[c] > 0.0f)
                     hdr_image.at<cv::Vec3f>(y, x)[c] = std::exp(pixel_values[c] / sum_weights[c]);
@@ -385,7 +383,6 @@ cv::Mat tone_mapping_global_optimized(const cv::Mat& hdr_image, float key, float
         const float* src_row = hdr_image.ptr<float>(y);
         uchar* dst_row = ldr_image.ptr<uchar>(y);
 
-        #pragma omp simd
         for (int x = 0; x < width; x++) {
             float luminance = 0.2126f * src_row[x*3+2] +
                             0.7152f * src_row[x*3+1] +
@@ -431,7 +428,6 @@ cv::Mat tone_mapping_local_optimized(const cv::Mat& hdr_image, float sigma, floa
         const float* src_row = hdr_image.ptr<float>(y);
         float* lum_row = luminance.ptr<float>(y);
 
-        #pragma omp simd
         for (int x = 0; x < width; x++) {
             lum_row[x] = 0.2126f * src_row[x*3+2] +
                         0.7152f * src_row[x*3+1] +
@@ -445,7 +441,6 @@ cv::Mat tone_mapping_local_optimized(const cv::Mat& hdr_image, float sigma, floa
         float* log_row = log_luminance.ptr<float>(y);
         const float* lum_row = luminance.ptr<float>(y);
 
-        #pragma omp simd
         for (int x = 0; x < width; x++) {
             log_row[x] = std::log(lum_row[x] + epsilon);
         }
@@ -461,14 +456,13 @@ cv::Mat tone_mapping_local_optimized(const cv::Mat& hdr_image, float sigma, floa
         const float* log_row = log_luminance.ptr<float>(y);
         const float* base_row = base_layer.ptr<float>(y);
 
-        #pragma omp simd
         for (int x = 0; x < width; x++) {
             detail_row[x] = log_row[x] - base_row[x];
         }
     }
 
     // 压缩基础层的动态范围
-    float log_min, log_max;
+    double log_min, log_max;
     cv::minMaxLoc(base_layer, &log_min, &log_max);
     float range = log_max - log_min;
 
@@ -479,7 +473,6 @@ cv::Mat tone_mapping_local_optimized(const cv::Mat& hdr_image, float sigma, floa
         const float* base_row = base_layer.ptr<float>(y);
         const float* detail_row = detail_layer.ptr<float>(y);
 
-        #pragma omp simd
         for (int x = 0; x < width; x++) {
             float compressed_base = (base_row[x] - log_max) * contrast / range;
             output_row[x] = std::exp(compressed_base + detail_row[x]);
@@ -494,7 +487,6 @@ cv::Mat tone_mapping_local_optimized(const cv::Mat& hdr_image, float sigma, floa
         const float* output_row = output_luminance.ptr<float>(y);
         uchar* dst_row = ldr_image.ptr<uchar>(y);
 
-        #pragma omp simd
         for (int x = 0; x < width; x++) {
             float original_luminance = lum_row[x];
             float mapped_luminance = output_row[x];

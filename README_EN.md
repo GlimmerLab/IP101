@@ -1,48 +1,100 @@
 # IP101 - 100 Questions in Image Processing
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/GlimmerLab/IP101)
+[![Language](https://img.shields.io/badge/language-C%2B%2B%20%7C%20Python-orange.svg)](https://github.com/GlimmerLab/IP101)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.0+-green.svg)](https://opencv.org/)
+[![CMake](https://img.shields.io/badge/CMake-3.10+-red.svg)](https://cmake.org/)
+
 English | [简体中文](README.md)
 
 IP101 is a comprehensive tutorial series focused on fundamental knowledge, operations, applications, and optimization in image processing. This series aims to help readers master core concepts and practical skills in image processing through 100 carefully designed questions.
+
+## 🚀 Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/GlimmerLab/IP101.git
+cd IP101
+
+# For Python users: Run directly
+python python/basic/color_operations.py 1
+
+# For C++ users: Build the project
+mkdir build && cd build
+cmake ..
+cmake --build . --config Release
+./examples/basic/color_operations_test
+```
+
+## 📋 Table of Contents
+- [Project Structure](#project-structure)
+- [Features](#features)
+- [Basic Questions Categories](#basic-questions-categories)
+- [Advanced Algorithm List](#advanced-algorithm-list)
+- [Usage](#usage)
+- [Contributing](#contributing)
 
 ## Project Structure
 
 ```
 IP101/
 ├── include/            # Header files
-│   └── basic/         # Basic algorithm headers
-├── docs/               # Documentation
-│   ├── algorithms/    # Algorithm documentation
-│   ├── tutorials/     # Tutorials
-│   └── optimization/  # Optimization techniques
-├── python/             # Python implementation
-│   ├── basic/          # Basic questions code
-│   │   ├── color_operations.py      # Color operations algorithms
-│   │   ├── filtering.py             # Image filtering algorithms
-│   │   ├── edge_detection.py        # Edge detection algorithms
-│   │   └── ...                      # Other algorithms
-│   └── advanced/       # Advanced algorithms code
+│   ├── basic/         # Basic algorithm headers
+│   └── advanced/      # Advanced algorithm headers
+│       ├── correction/    # Image correction algorithms
+│       ├── defogging/     # Image defogging algorithms
+│       ├── detection/     # Special detection algorithms
+│       ├── effects/       # Image effects algorithms
+│       ├── enhancement/   # Image enhancement algorithms
+│       └── filtering/     # Advanced filtering algorithms
 ├── cpp/                # C++ implementation
 │   ├── basic/          # Basic questions code
-│   │   ├── color_operations.cpp     # Color operations algorithms
-│   │   ├── filtering.cpp            # Image filtering algorithms
-│   │   ├── edge_detection.cpp       # Edge detection algorithms
-│   │   └── ...                      # Other algorithms
 │   └── advanced/       # Advanced algorithms code
+│       ├── image_correction/    # Image correction
+│       ├── image_defogging/     # Image defogging
+│       ├── image_effects/       # Image effects
+│       ├── image_enhancement/   # Image enhancement
+│       ├── advanced_filtering/  # Advanced filtering
+│       └── special_detection/   # Special detection
+├── python/             # Python implementation
+│   ├── basic/          # Basic questions code
+│   ├── advanced/       # Advanced algorithms code
+│   ├── image_processing/   # Image processing tools
+│   └── tests/          # Test code
 ├── examples/           # Example code
 │   ├── basic/          # Basic questions examples
 │   └── advanced/       # Advanced algorithms examples
-├── assets/             # Asset files
-└── tests/              # Test code
+├── docs/               # Documentation
+│   ├── algorithms/     # Algorithm documentation
+│   ├── tutorials/      # Tutorials
+│   └── optimization/   # Optimization techniques
+├── gui/                # GUI interface
+├── tests/              # Test code
+├── utils/              # Utility functions
+├── third_party/        # Third-party dependencies
+│   ├── glfw/           # GLFW library
+│   └── imgui/          # ImGui library
+├── cmake/              # CMake configuration
+└── assets/             # Asset files
 ```
 
-## Features
+## ✨ Project Highlights
 
-- Complete learning path from basics to advanced
-- Integration of theory and practice
-- Rich code examples
-- Real application scenario analysis
-- Performance optimization techniques
-- **Teaching-oriented implementation**: All algorithms are manually implemented without using OpenCV built-in functions to help understand algorithm principles
+### 🎯 Teaching-Oriented
+- **Manual Implementation**: All algorithms are manually implemented without using OpenCV built-in functions to help understand algorithm principles
+- **Progressive Learning**: Complete learning path from basics to advanced
+- **Theory-Practice Integration**: Each algorithm comes with detailed mathematical principle explanations
+
+### 🚀 Technical Advantages
+- **High Performance**: C++ implementation supports SIMD optimization and multi-threading acceleration
+- **Cross-Platform**: Supports Windows, Linux, and macOS
+- **Easy Extension**: Modular design for easy addition of new algorithms
+
+### 📚 Rich Content
+- **100 Basic Questions**: Covers all areas of image processing
+- **30+ Advanced Algorithms**: Includes latest research algorithms
+- **Bilingual Support**: Chinese and English documentation and code comments
 
 ## Supported Languages
 
@@ -51,7 +103,6 @@ IP101/
 | Python | ✅ | Full support, includes solutions for all 100 questions |
 | C++ | ✅ | Full support, includes solutions for all 100 questions |
 | MATLAB | ❌ | Not supported yet |
-| Java | ❌ | Not supported yet |
 
 ## Basic Questions Categories
 
@@ -235,80 +286,84 @@ IP101/
 | Q99 | Multi-frame SR | ⭐⭐⭐ | [Python](python/basic/super_resolution.py) / [C++](cpp/basic/super_resolution.cpp) |
 | Q100 | Real-time SR | ⭐⭐⭐ | [Python](python/basic/super_resolution.py) / [C++](cpp/basic/super_resolution.cpp) |
 
-## Advanced Content Overview
-
-1. **Algorithm Documentation** - `docs/algorithms/`
-   - Algorithm Principles
-   - Mathematical Model Analysis
-   - Algorithm Complexity Assessment
-   - Real-world Application Scenarios
-
-2. **Tutorials** - `docs/tutorials/`
-   - Image Processing Introduction
-   - Development Environment Setup
-   - Algorithm Implementation Guides
-   - Performance Optimization Methods
-
-3. **Optimization Techniques** - `docs/optimization/`
-   - Multi-threading Optimization
-   - SIMD Vectorization
-   - GPU Acceleration
-   - Memory Optimization
-   - Algorithm Improvements
-
 ## Advanced Algorithm List
 
 ### 1. Image Enhancement Algorithms
 | Algorithm | Category | Python | C++ | Difficulty | Code Reference |
 |-----------|----------|---------|-----|------------|----------------|
-| Retinex MSRCR | Image Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/retinex_msrcr.py) / [C++](cpp/advanced/Retinex_MSRCR.cpp) |
+| Retinex MSRCR | Image Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/retinex_msrcr.py) / [C++](cpp/advanced/image_enhancement/retinex_msrcr.cpp) |
 | HDR | High Dynamic Range | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/hdr.py) / [C++](cpp/advanced/HDR.cpp) |
-| Adaptive Logarithmic Mapping | High Dynamic Range | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/adaptive_logarithmic.py) / [C++](cpp/advanced/AdaptiveLogarithmicMapping.cpp) |
-| Multi-scale Detail Boosting | Image Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/detail_boosting.py) / [C++](cpp/advanced/MultiScaleDetailBoosting.cpp) |
-| Real-time Adaptive Contrast | Image Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/adaptive_contrast.py) / [C++](cpp/advanced/RealTimeAdaptiveContrast.cpp) |
-| Automatic Color Equalization | Color Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/ace.py) / [C++](cpp/advanced/AutomaticColorEqualization.cpp) |
+| Adaptive Logarithmic Mapping | High Dynamic Range | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/adaptive_logarithmic_mapping.py) / [C++](cpp/advanced/image_enhancement/adaptive_logarithmic_mapping.cpp) |
+| Multi-scale Detail Enhancement | Image Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/multi_scale_detail_enhancement.py) / [C++](cpp/advanced/image_enhancement/multi_scale_detail_enhancement.cpp) |
+| Real-time Adaptive Contrast | Image Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/real_time_adaptive_contrast.py) / [C++](cpp/advanced/image_enhancement/real_time_adaptive_contrast.cpp) |
+| Automatic Color Equalization (ACE) | Color Enhancement | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/automatic_color_equalization.py) / [C++](cpp/advanced/image_enhancement/automatic_color_equalization.cpp) |
 
 ### 2. Image Correction Algorithms
 | Algorithm | Category | Python | C++ | Difficulty | Code Reference |
 |-----------|----------|---------|-----|------------|----------------|
-| Auto White Balance | Color Correction | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/auto_white_balance.py) / [C++](cpp/advanced/AutomaticWhiteBalanceMethod.cpp) |
-| Auto Level Adjustment | Color Correction | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/auto_level.py) / [C++](cpp/advanced/AutoLevelAndAutoContrast.cpp) |
-| Illumination Correction | Image Correction | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/illumination_correction.py) / [C++](cpp/advanced/IlluminationCorrection.cpp) |
-| Backlight Image Recovery | Image Recovery | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/backlight.py) / [C++](cpp/advanced/Inrbl.cpp) |
-| 2D Gamma Correction | Image Correction | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/gamma_correction.py) / [C++](cpp/advanced/TwoDimensionalGamma.cpp) |
+| Auto White Balance | Color Correction | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/automatic_white_balance.py) / [C++](cpp/advanced/image_correction/automatic_white_balance.cpp) |
+| Auto Level Adjustment | Color Correction | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/auto_level_adjustment.py) / [C++](cpp/advanced/image_correction/auto_level.cpp) |
+| Illumination Correction | Image Correction | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/illumination_correction.py) / [C++](cpp/advanced/image_correction/illumination_correction.cpp) |
+| Backlight Image Recovery | Image Recovery | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/backlight_correction.py) / [C++](cpp/advanced/image_correction/backlight.cpp) |
+| 2D Gamma Correction | Image Correction | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/gamma_correction.py) / [C++](cpp/advanced/image_correction/gamma_correction.cpp) |
 
 ### 3. Image Dehazing Algorithms
 | Algorithm | Category | Python | C++ | Difficulty | Code Reference |
 |-----------|----------|---------|-----|------------|----------------|
-| Dark Channel Prior | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/dark_channel.py) / [C++](cpp/advanced/DarkChannelPrior.cpp) |
-| Guided Filter Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/GuidedFilterDehazing.cpp) |
-| Median Filter Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/median_filter.py) / [C++](cpp/advanced/MedianFilterFogRemoval.cpp) |
-| Fast Single Image Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/fast_defogging.py) / [C++](cpp/advanced/FastDefogging.cpp) |
-| Real-time Video Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/realtime_dehazing.py) / [C++](cpp/advanced/RealtimeDehazing.cpp) |
+| Dark Channel Prior | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/dark_channel_dehazing.py) / [C++](cpp/advanced/image_defogging/dark_channel.cpp) |
+| Guided Filter Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/image_defogging/guided_filter.cpp) |
+| Median Filter Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/median_filter_defogging.py) / [C++](cpp/advanced/image_defogging/median_filter.cpp) |
+| Fast Single Image Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/fast_defogging.py) / [C++](cpp/advanced/image_defogging/fast_defogging.cpp) |
+| Real-time Video Dehazing | Image Dehazing | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/realtime_dehazing.py) / [C++](cpp/advanced/image_defogging/realtime_dehazing.cpp) |
 
 ### 4. Advanced Filtering Algorithms
 | Algorithm | Category | Python | C++ | Difficulty | Code Reference |
 |-----------|----------|---------|-----|------------|----------------|
-| Guided Filter | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/GuidedFilter.cpp) |
-| Side Window Filter (Box) | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window.py) / [C++](cpp/advanced/BoxSideWindowFilter.cpp) |
-| Side Window Filter (Median) | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window.py) / [C++](cpp/advanced/MedianSideWindowFilter.cpp) |
-| Homomorphic Filter | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/homomorphic.py) / [C++](cpp/advanced/HomomorphicFilter.cpp) |
+| Guided Filter | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/guided_filter.py) / [C++](cpp/advanced/advanced_filtering/guided_filter.cpp) |
+| Side Window Filter (Box) | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window_filter.py) / [C++](cpp/advanced/advanced_filtering/side_window_filter.cpp) |
+| Side Window Filter (Median) | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/side_window_filter.py) / [C++](cpp/advanced/advanced_filtering/side_window_filter.cpp) |
+| Homomorphic Filter | Image Filtering | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/homomorphic_filter.py) / [C++](cpp/advanced/advanced_filtering/homomorphic_filter.cpp) |
 
 ### 5. Special Object Detection
 | Algorithm | Category | Python | C++ | Difficulty | Code Reference |
 |-----------|----------|---------|-----|------------|----------------|
-| Rectangle Detection | Object Detection | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/rectangle_detection.py) / [C++](cpp/advanced/RectangleDetection.cpp) |
-| License Plate Detection | Object Detection | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/license_plate.py) / [C++](cpp/advanced/LicensePlateDetection.cpp) |
-| Color Cast Detection | Image Detection | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/color_cast.py) / [C++](cpp/advanced/ColorCastDetection.cpp) |
+| Rectangle Detection | Object Detection | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/rectangle_detection.py) / [C++](cpp/advanced/special_detection/rectangle_detection.cpp) |
+| License Plate Detection | Object Detection | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/license_plate_detection.py) / [C++](cpp/advanced/special_detection/license_plate_detection.cpp) |
+| Color Cast Detection | Image Detection | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/color_cast_detection.py) / [C++](cpp/advanced/special_detection/color_cast_detection.cpp) |
 
 ### 6. Image Effect Algorithms
 | Algorithm | Category | Python | C++ | Difficulty | Code Reference |
 |-----------|----------|---------|-----|------------|----------------|
-| Vintage Effect | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/vintage_effect.py) / [C++](cpp/advanced/VintageEffect.cpp) |
-| Motion Blur | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/motion_blur.py) / [C++](cpp/advanced/MotionBlur.cpp) |
-| Spherize Effect | Image Effect | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/spherize.py) / [C++](cpp/advanced/Spherize.cpp) |
-| Skin Beauty | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/skin_beauty.py) / [C++](cpp/advanced/SkinBeauty.cpp) |
-| Unsharp Masking | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/usm.py) / [C++](cpp/advanced/UnsharpMasking.cpp) |
+| Vintage Effect | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/vintage_effect.py) / [C++](cpp/advanced/image_effects/vintage_effect.cpp) |
+| Motion Blur | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/motion_blur_effect.py) / [C++](cpp/advanced/image_effects/motion_blur.cpp) |
+| Spherize Effect | Image Effect | ✅ | ✅ | ⭐⭐⭐ | [Python](python/advanced/spherize_effect.py) / [C++](cpp/advanced/image_effects/spherize.cpp) |
+| Skin Beauty | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/skin_beauty.py) / [C++](cpp/advanced/image_effects/skin_beauty.cpp) |
+| Unsharp Masking | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/unsharp_masking.py) / [C++](cpp/advanced/image_effects/unsharp_masking.cpp) |
+| Oil Painting Effect | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/oil_painting_effect.py) / [C++](cpp/advanced/image_effects/oil_painting_effect.cpp) |
+| Cartoon Effect | Image Effect | ✅ | ✅ | ⭐⭐ | [Python](python/advanced/cartoon_effect.py) / [C++](cpp/advanced/image_effects/cartoon_effect.cpp) |
+
+## 📚 Documentation & Tutorials
+
+### 📖 Algorithm Documentation (`docs/algorithms/`)
+Comprehensive technical documentation including:
+- **Algorithm Principles**: Mathematical derivation and core concepts
+- **Complexity Analysis**: Time and space complexity evaluation
+- **Application Scenarios**: Real-world use cases and best practices
+- **Parameter Tuning**: Algorithm parameter selection and optimization tips
+
+### 🎓 Learning Tutorials (`docs/tutorials/`)
+Complete learning path from beginner to expert:
+- **Environment Setup**: Development environment configuration guide
+- **Basic Introduction**: Image processing fundamental concepts
+- **Practical Cases**: Step-by-step algorithm implementation tutorials
+- **Performance Analysis**: Code performance evaluation and optimization
+
+### ⚡ Performance Optimization (`docs/optimization/`)
+Advanced optimization techniques guide:
+- **Multi-threading**: OpenMP and thread pool optimization
+- **SIMD Vectorization**: CPU instruction set optimization
+- **Memory Management**: Cache-friendly data structures
+- **Algorithm Improvements**: Mathematical optimization and approximation algorithms
 
 ## Usage
 
@@ -375,6 +430,11 @@ cmake --build . --config Release
 ./examples/basic/filtering_test
 ```
 
+**Important Notes**:
+- Make sure to run executables from the correct build directory (e.g., `build/Release/` or `build/Debug/`)
+- **Windows users pay special attention**: You need to copy OpenCV DLL files (such as `opencv_world4xx.dll`) to the executable directory, or add them to the system PATH environment variable
+- If you encounter "opencv_world4xx.dll not found" error, check if OpenCV's bin directory is in PATH, or manually copy DLL files to the program directory
+
 4. Develop your own applications:
 ```cpp
 // my_app.cpp
@@ -404,13 +464,36 @@ int main() {
 g++ -std=c++17 my_app.cpp -o my_app -I/path/to/IP101/include `pkg-config --cflags --libs opencv4`
 ```
 
-## Contributing
+## ❓ FAQ
+
+### Q: Why manual implementation instead of using OpenCV built-in functions?
+A: Manual implementation helps deeply understand algorithm principles, which is the teaching feature of this project. In actual projects, you can choose to use OpenCV built-in functions as needed.
+
+### Q: How to choose the right programming language?
+A:
+- **Python**: Suitable for rapid prototyping and algorithm verification
+- **C++**: Suitable for production environments with high performance requirements
+
+### Q: What to do if encountering DLL errors on Windows?
+A: Please refer to the Windows-specific tips in the [Usage](#usage) section to ensure OpenCV DLL files are in the correct location.
+
+### Q: How to contribute code?
+A: Welcome to submit Issues and Pull Requests! Please refer to the contribution guidelines below.
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch: `git checkout -b feature/your-feature`
 3. Commit your changes: `git commit -am 'Add some feature'`
 4. Push to the branch: `git push origin feature/your-feature`
 5. Submit a Pull Request
+
+### Contribution Types
+- 🐛 Bug fixes
+- ✨ New features
+- 📚 Documentation improvements
+- 🎨 Code optimization
+- 🧪 Test cases
 
 ## License
 
@@ -420,16 +503,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 IP101 references and draws inspiration from the following projects:
 
+### 🖼️ Image Processing Algorithm References
 - [BBuf/Image-processing-algorithm](https://github.com/BBuf/Image-processing-algorithm)
-
 - [gzr2017/ImageProcessing100Wen](https://github.com/gzr2017/ImageProcessing100Wen)
-
 - [KuKuXia/Image_Processing_100_Questions](https://github.com/KuKuXia/Image_Processing_100_Questions)
-
 - [ryoppippi/Gasyori100knock](https://github.com/ryoppippi/Gasyori100knock)
 
-- [OpenCV](https://github.com/opencv/opencv)
+### 🔧 Core Dependencies
+- [OpenCV](https://github.com/opencv/opencv) - Computer Vision Library
+- [scikit-image](https://github.com/scikit-image/scikit-image) - Python Image Processing Library
+- [SimpleCV](https://github.com/sightmachine/SimpleCV) - Computer Vision Framework
 
-- [scikit-image](https://github.com/scikit-image/scikit-image)
+### 🖥️ GUI Interface Dependencies
+- [GLFW](https://github.com/glfw/glfw) - Cross-platform OpenGL context and window management library
+- [Dear ImGui](https://github.com/ocornut/imgui) - Lightweight immediate mode graphical user interface library
 
-- [SimpleCV](https://github.com/sightmachine/SimpleCV)
+### 📚 Learning Resources
+- [imageshop](https://www.cnblogs.com/imageshop) - Image Processing Technology Blog

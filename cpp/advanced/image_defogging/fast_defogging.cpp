@@ -1,5 +1,5 @@
-#include "fast_defogging.hpp"
-#include "dark_channel.hpp"
+#include <advanced/defogging/fast_defogging.hpp>
+#include <advanced/defogging/dark_channel.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

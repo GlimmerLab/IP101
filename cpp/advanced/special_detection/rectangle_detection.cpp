@@ -1,4 +1,4 @@
-#include "rectangle_detection.hpp"
+#include <advanced/detection/rectangle_detection.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -253,27 +253,28 @@ void hough_based_rectangle_detection(const cv::Mat& src, std::vector<RectangleIn
 
                     // 计算矩形的四个角点
                     cv::Point2f corners[4];
-                    bool valid_corners = true;
 
                     // 寻找两条水平线和两条垂直线的交点
                     // 上左角
-                    if (!cv::solveSubpixelPosition(h1, v1, corners[0])) {
-                        valid_corners = false;
-                    }
+                    corners[0] = cv::Point2f(v1[0], h1[1]);
 
                     // 上右角
-                    if (!cv::solveSubpixelPosition(h1, v2, corners[1])) {
-                        valid_corners = false;
-                    }
+                    corners[1] = cv::Point2f(v2[0], h1[1]);
 
                     // 下右角
-                    if (!cv::solveSubpixelPosition(h2, v2, corners[2])) {
-                        valid_corners = false;
-                    }
+                    corners[2] = cv::Point2f(v2[0], h2[1]);
 
                     // 下左角
-                    if (!cv::solveSubpixelPosition(h2, v1, corners[3])) {
-                        valid_corners = false;
+                    corners[3] = cv::Point2f(v1[0], h2[1]);
+
+                    // 检查角点是否有效
+                    bool valid_corners = true;
+                    for (int c = 0; c < 4; c++) {
+                        if (corners[c].x < 0 || corners[c].x >= src.cols ||
+                            corners[c].y < 0 || corners[c].y >= src.rows) {
+                            valid_corners = false;
+                            break;
+                        }
                     }
 
                     if (!valid_corners) {
@@ -283,7 +284,10 @@ void hough_based_rectangle_detection(const cv::Mat& src, std::vector<RectangleIn
                     // 创建矩形轮廓
                     std::vector<cv::Point> rect_contour;
                     for (int c = 0; c < 4; c++) {
-                        rect_contour.push_back(cv::Point(static_cast<int>(corners[c].x), static_cast<int>(corners[c].y)));
+                        rect_contour.push_back(cv::Point(
+                            static_cast<int>(std::round(corners[c].x)),
+                            static_cast<int>(std::round(corners[c].y))
+                        ));
                     }
 
                     // 确保轮廓在图像范围内
@@ -337,7 +341,10 @@ void hough_based_rectangle_detection(const cv::Mat& src, std::vector<RectangleIn
                     // 存储角点
                     rect_info.corners.resize(4);
                     for (int c = 0; c < 4; c++) {
-                        rect_info.corners[c] = cv::Point(static_cast<int>(corners[c].x), static_cast<int>(corners[c].y));
+                        rect_info.corners[c] = cv::Point(
+                            static_cast<int>(std::round(corners[c].x)),
+                            static_cast<int>(std::round(corners[c].y))
+                        );
                     }
 
                     rectangles.push_back(rect_info);

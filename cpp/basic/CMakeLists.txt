@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
-project(ip101_basic)
+# 基础算法库的CMakeLists.txt
 
 # 源文件列表（排除测试文件）
 set(SOURCES
@@ -28,16 +27,25 @@ set(SOURCES
 # 创建静态库
 add_library(ip101_basic STATIC ${SOURCES})
 
-# 链接库和包含目录（使用父级CMake定义的变量）
+# 链接库
 target_link_libraries(ip101_basic
     PUBLIC
     ${IP101_COMMON_LIBRARIES}
 )
 
-# 包含头文件目录
+# 包含头文件目录（使用生成器表达式）
 target_include_directories(ip101_basic
     PUBLIC
-    ${IP101_COMMON_INCLUDES}
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/utils>
+    $<INSTALL_INTERFACE:include>
+    ${OpenCV_INCLUDE_DIRS}
+)
+
+# 设置C++标准
+set_target_properties(ip101_basic PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
 )
 
 # 安装选项

@@ -1,4 +1,4 @@
-#include "skin_beauty.hpp"
+#include <advanced/effects/skin_beauty.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

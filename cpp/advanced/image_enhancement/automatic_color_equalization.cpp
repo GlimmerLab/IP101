@@ -1,4 +1,4 @@
-#include "automatic_color_equalization.hpp"
+#include <advanced/enhancement/automatic_color_equalization.hpp>
 #include <cmath>
 #include <omp.h>
 
@@ -29,7 +29,7 @@ void automatic_color_equalization(const cv::Mat& src, cv::Mat& dst,
     #pragma omp parallel for
     for(int i = 0; i < L.rows; i++) {
         for(int j = 0; j < L.cols; j++) {
-            float& pixel = L.at<uchar>(i, j);
+            uchar& pixel = L.at<uchar>(i, j);
             pixel = cv::saturate_cast<uchar>(
                 mean_L[0] + gain * (pixel - mean_L[0]));
         }

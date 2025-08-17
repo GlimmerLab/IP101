@@ -1,4 +1,4 @@
-#include "vintage_effect.hpp"
+#include <advanced/effects/vintage_effect.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -158,7 +158,7 @@ void add_scratches(const cv::Mat& src, cv::Mat& dst, double count, double intens
     std::uniform_int_distribution<int> dist_y(0, src.rows - 1);
     std::uniform_int_distribution<int> dist_length(src.rows / 10, src.rows / 3);
     std::uniform_int_distribution<int> dist_width(1, 2);
-    std::uniform_real_distribution<float> dist_angle(0, CV_PI);
+    std::uniform_real_distribution<float> dist_angle(0.0f, static_cast<float>(CV_PI));
 
     // 将划痕数量取整
     int scratch_count = static_cast<int>(count);

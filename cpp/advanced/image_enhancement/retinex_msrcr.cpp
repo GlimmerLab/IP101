@@ -1,4 +1,4 @@
-#include "retinex_msrcr.hpp"
+#include <advanced/enhancement/retinex_msrcr.hpp>
 #include <cmath>
 #include <omp.h>
 #include <algorithm>
@@ -381,7 +381,7 @@ void retinex_msrcr(const cv::Mat& src, cv::Mat& dst,
     }
 
     // 并行计算所有通道的高斯模糊
-    #pragma omp parallel for collapse(2) schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic)
     for (int c = 0; c < 3; c++) {
         for (int s = 0; s < 3; s++) {
             double sigma = (s == 0) ? sigma1 : ((s == 1) ? sigma2 : sigma3);

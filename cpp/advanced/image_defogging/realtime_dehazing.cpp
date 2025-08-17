@@ -1,5 +1,5 @@
-#include "realtime_dehazing.hpp"
-#include "dark_channel.hpp"
+#include <advanced/defogging/realtime_dehazing.hpp>
+#include <advanced/defogging/dark_channel.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

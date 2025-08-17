@@ -1,4 +1,4 @@
-#include "side_window_filter.hpp"
+#include <advanced/filtering/side_window_filter.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -79,7 +79,7 @@ void compute_directional_gradients(const cv::Mat& src, std::vector<cv::Mat>& gra
 
     // 取绝对值
     for (auto& grad : gradients) {
-        cv::abs(grad, grad);
+        grad = cv::abs(grad);
     }
 }
 

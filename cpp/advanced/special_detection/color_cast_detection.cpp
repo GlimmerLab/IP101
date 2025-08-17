@@ -1,4 +1,4 @@
-#include "color_cast_detection.hpp"
+#include <advanced/detection/color_cast_detection.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

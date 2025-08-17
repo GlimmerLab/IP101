@@ -1,4 +1,4 @@
-#include "unsharp_masking.hpp"
+#include <advanced/effects/unsharp_masking.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

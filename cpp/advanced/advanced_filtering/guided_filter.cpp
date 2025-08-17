@@ -1,4 +1,4 @@
-#include "guided_filter.hpp"
+#include <advanced/filtering/guided_filter.hpp>
 #include <vector>
 #include <cmath>
 #include <omp.h>
