@@ -209,16 +209,16 @@ void quality_assessment(const Mat& src) {
     cout << "Histogram similarity (CLAHE): " << similarity_clahe << endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
     cout << "=== Real-time Adaptive Contrast Algorithm Test ===" << endl;
 
     // Create output directory
     create_output_directories();
 
-    // Load test image
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "Cannot load test image" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 

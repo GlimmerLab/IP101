@@ -23,6 +23,14 @@ foreach(example ${GUI_EXAMPLES})
         ${IP101_COMMON_LIBRARIES}
     )
 
+    # 设置包含目录
+    target_include_directories(${example_name}
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/utils
+        ${OpenCV_INCLUDE_DIRS}
+    )
+
     # 高级GUI需要额外依赖
     if(example_name STREQUAL "main_gui")
         if(TARGET imgui)

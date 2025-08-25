@@ -3,6 +3,7 @@
 #include <chrono>
 #include <vector>
 #include <tuple>
+#include <string>
 #include "advanced/effects/cartoon_effect.hpp"
 
 // Performance test helper function
@@ -146,15 +147,12 @@ void test_different_styles(const cv::Mat& src) {
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        std::cout << "Usage: " << argv[0] << " <image_path>" << std::endl;
-        return -1;
-    }
+    using std::string;
 
-    // Read image
-    cv::Mat src = cv::imread(argv[1]);
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    cv::Mat src = cv::imread(image_path);
     if (src.empty()) {
-        std::cout << "Could not read image: " << argv[1] << std::endl;
+        std::cerr << "Error: Cannot load image " << image_path << std::endl;
         return -1;
     }
 

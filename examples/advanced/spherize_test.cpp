@@ -16,7 +16,7 @@ void create_output_directories() {
 
 // 性能测试
 void performance_test(const Mat& src) {
-    cout << "\n--- 性能测试 ---" << endl;
+    cout << "\n--- Performance Test ---" << endl;
 
     Mat dst;
     int iterations = 10;
@@ -35,7 +35,7 @@ void performance_test(const Mat& src) {
     double avg_time = duration.count() / (double)iterations;
     double fps = 1000000.0 / avg_time;
 
-    cout << "IP101球面化效果 - 平均时间: " << fixed << setprecision(2)
+    cout << "IP101 Spherize Effect - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 
     // 测试OpenCV对比算法（使用仿射变换作为对比）
@@ -51,13 +51,13 @@ void performance_test(const Mat& src) {
     avg_time = duration.count() / (double)iterations;
     fps = 1000000.0 / avg_time;
 
-    cout << "OpenCV仿射变换 - 平均时间: " << fixed << setprecision(2)
+    cout << "OpenCV Affine Transform - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 }
 
 // 参数效果测试
 void parameter_effect_test(const Mat& src) {
-    cout << "\n--- 参数效果测试 ---" << endl;
+    cout << "\n--- Parameter Effect Test ---" << endl;
 
     vector<double> strength_values = {0.1, 0.3, 0.5, 0.7, 0.9};
     vector<Point2f> center_points = {
@@ -69,7 +69,7 @@ void parameter_effect_test(const Mat& src) {
     };
 
     // 测试强度参数
-    cout << "测试强度参数效果..." << endl;
+    cout << "Testing strength parameter effects..." << endl;
     for (size_t i = 0; i < strength_values.size(); i++) {
         Mat result;
         ip101::advanced::SpherizeParams params;
@@ -81,7 +81,7 @@ void parameter_effect_test(const Mat& src) {
     }
 
     // 测试中心点参数
-    cout << "测试中心点参数效果..." << endl;
+    cout << "Testing center point parameter effects..." << endl;
     for (size_t i = 0; i < center_points.size(); i++) {
         Mat result;
         ip101::advanced::SpherizeParams params;
@@ -95,7 +95,7 @@ void parameter_effect_test(const Mat& src) {
 
 // 可视化测试
 void visualization_test(const Mat& src) {
-    cout << "\n--- 可视化测试 ---" << endl;
+    cout << "\n--- Visualization Test ---" << endl;
 
     // 应用球面化效果
     Mat dst_spherize;
@@ -115,7 +115,12 @@ void visualization_test(const Mat& src) {
     imwrite("output/spherize/opencv_comparison.jpg", opencv_result);
 
     // 创建对比图像
-    vector<Mat> images = {src, dst_spherize, opencv_result};
+    // Ensure all images have the same size for hconcat
+    Mat dst_spherize_resized, opencv_result_resized;
+    resize(dst_spherize, dst_spherize_resized, src.size());
+    resize(opencv_result, opencv_result_resized, src.size());
+
+    vector<Mat> images = {src, dst_spherize_resized, opencv_result_resized};
     Mat comparison;
     hconcat(images, comparison);
 
@@ -137,7 +142,7 @@ void visualization_test(const Mat& src) {
 
 // 特殊场景测试
 void special_scenario_test(const Mat& src) {
-    cout << "\n--- 特殊场景测试 ---" << endl;
+    cout << "\n--- Special Scenario Test ---" << endl;
 
     // 测试不同强度级别
     vector<double> strengths = {0.2, 0.5, 0.8};
@@ -175,7 +180,7 @@ void special_scenario_test(const Mat& src) {
 
 // 质量评估
 void quality_assessment(const Mat& src) {
-    cout << "\n--- 质量评估 ---" << endl;
+    cout << "\n--- Quality Assessment ---" << endl;
 
     // 应用球面化效果
     Mat dst_spherize;
@@ -211,7 +216,10 @@ void quality_assessment(const Mat& src) {
 
     // 计算PSNR
     Mat diff;
-    absdiff(src, dst_spherize, diff);
+    // Ensure both images have the same size for absdiff
+    Mat dst_spherize_resized;
+    resize(dst_spherize, dst_spherize_resized, src.size());
+    absdiff(src, dst_spherize_resized, diff);
     diff.convertTo(diff, CV_32F);
     diff = diff.mul(diff);
 
@@ -236,9 +244,9 @@ void quality_assessment(const Mat& src) {
     meanStdDev(src, mean_src, std_src);
     meanStdDev(dst_spherize, mean_result, std_result);
 
-    cout << "Color preservation - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
-    cout << "Color preservation - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
-    cout << "Color preservation - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
+    cout << "Color Preservation - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
+    cout << "Color Preservation - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
+    cout << "Color Preservation - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
 
     // 计算几何变形度量
     Mat laplacian_src, laplacian_result;
@@ -249,19 +257,19 @@ void quality_assessment(const Mat& src) {
     meanStdDev(laplacian_src, mean_lap_src, std_lap_src);
     meanStdDev(laplacian_result, mean_lap_result, std_lap_result);
 
-    cout << "Geometric distortion degree: " << abs(std_lap_result[0] - std_lap_src[0]) / std_lap_src[0] * 100 << "%" << endl;
+    cout << "Geometric Distortion Degree: " << abs(std_lap_result[0] - std_lap_src[0]) / std_lap_src[0] * 100 << "%" << endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
     cout << "=== Spherize Effect Algorithm Test ===" << endl;
 
     // 创建输出目录
     create_output_directories();
 
-    // 加载测试图像
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "Cannot load test image" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 

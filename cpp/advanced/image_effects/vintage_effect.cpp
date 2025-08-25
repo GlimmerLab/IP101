@@ -21,39 +21,38 @@ void apply_sepia_tone(const cv::Mat& src, cv::Mat& dst, double intensity) {
     // | G' | = | 0.349  0.686  0.168 | | G |
     // | B' |   | 0.272  0.534  0.131 | | B |
 
-    // 生成褐色调查找表，考虑强度参数
-    cv::Mat sepia_table(1, 256, CV_8UC3);
-    for (int i = 0; i < 256; i++) {
-        float b = std::min(255.0f, (0.272f * i + 0.534f * i + 0.131f * i));
-        float g = std::min(255.0f, (0.349f * i + 0.686f * i + 0.168f * i));
-        float r = std::min(255.0f, (0.393f * i + 0.769f * i + 0.189f * i));
-
-        // 根据强度混合原始颜色和褐色调
-        sepia_table.at<cv::Vec3b>(0, i)[0] = cv::saturate_cast<uchar>((1.0 - intensity) * i + intensity * b);
-        sepia_table.at<cv::Vec3b>(0, i)[1] = cv::saturate_cast<uchar>((1.0 - intensity) * i + intensity * g);
-        sepia_table.at<cv::Vec3b>(0, i)[2] = cv::saturate_cast<uchar>((1.0 - intensity) * i + intensity * r);
-    }
-
-    // 转换原始图像到灰度图像
-    cv::Mat gray;
     if (src.channels() == 3) {
-        cv::cvtColor(src, gray, cv::COLOR_BGR2GRAY);
-    } else {
-        gray = src.clone();
-    }
+        // 对于彩色图像，直接应用颜色变换
+        #pragma omp parallel for
+        for (int y = 0; y < src.rows; y++) {
+            for (int x = 0; x < src.cols; x++) {
+                cv::Vec3b pixel = src.at<cv::Vec3b>(y, x);
 
-    // 应用查找表
-    cv::Mat sepia;
-    cv::LUT(gray, sepia_table, sepia);
+                // 计算褐色调值
+                float b = 0.272f * pixel[0] + 0.534f * pixel[1] + 0.131f * pixel[2];
+                float g = 0.349f * pixel[0] + 0.686f * pixel[1] + 0.168f * pixel[2];
+                float r = 0.393f * pixel[0] + 0.769f * pixel[1] + 0.189f * pixel[2];
 
-    if (src.channels() == 3) {
-        sepia.copyTo(dst);
+                // 根据强度混合原始颜色和褐色调
+                dst.at<cv::Vec3b>(y, x)[0] = cv::saturate_cast<uchar>((1.0 - intensity) * pixel[0] + intensity * b);
+                dst.at<cv::Vec3b>(y, x)[1] = cv::saturate_cast<uchar>((1.0 - intensity) * pixel[1] + intensity * g);
+                dst.at<cv::Vec3b>(y, x)[2] = cv::saturate_cast<uchar>((1.0 - intensity) * pixel[2] + intensity * r);
+            }
+        }
     } else {
-        // 对于灰度输入，我们需要合并通道
-        std::vector<cv::Mat> sepia_channels;
-        cv::split(sepia, sepia_channels);
-        cv::Mat result = (sepia_channels[0] + sepia_channels[1] + sepia_channels[2]) / 3;
-        result.copyTo(dst);
+        // 对于灰度图像，创建单通道查找表
+        cv::Mat sepia_table(1, 256, CV_8U);
+        for (int i = 0; i < 256; i++) {
+            // 计算褐色调的灰度值
+            float sepia_value = 0.272f * i + 0.534f * i + 0.131f * i;
+            sepia_value = std::min(255.0f, sepia_value);
+
+            // 根据强度混合原始颜色和褐色调
+            sepia_table.at<uchar>(0, i) = cv::saturate_cast<uchar>((1.0 - intensity) * i + intensity * sepia_value);
+        }
+
+        // 应用查找表
+        cv::LUT(src, sepia_table, dst);
     }
 }
 

@@ -10,15 +10,16 @@
 using namespace std;
 using namespace cv;
 
-int main() {
-    cout << "=== 实时去雾算法测试 ===" << endl;
+int main(int argc, char** argv) {
+    cout << "=== Real-time Defogging Algorithm Test ===" << endl;
 
     filesystem::create_directories("output/realtime_dehazing");
 
-    Mat src = imread("test_images/test_image.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        src = Mat::zeros(480, 640, CV_8UC3);
-        src.setTo(Scalar(100, 150, 200));
+        cerr << "Error: Cannot load image " << image_path << endl;
+        return -1;
     }
 
     int rows = src.rows;
@@ -63,7 +64,7 @@ int main() {
     ip101::advanced::realtime_dehazing(hazy_image, dst_realtime, 0.25, 0.95, 0.1);
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "实时去雾算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Real-time Defogging Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     start = chrono::high_resolution_clock::now();
     Vec3d A_fast(255, 255, 255);
@@ -71,13 +72,13 @@ int main() {
     ip101::advanced::fast_dehazing_model(hazy_image, dst_fast, A_fast, transmission_map);
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "快速去雾算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Fast Defogging Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     start = chrono::high_resolution_clock::now();
     ip101::advanced::realtime_dark_channel_dehazing(hazy_image, dst_dark_channel, 15, 7, 0.95, 0.1);
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "暗通道去雾算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Dark Channel Defogging Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     // 保存结果
     imwrite("output/realtime_dehazing/hazy_original.jpg", hazy_image);
@@ -92,6 +93,6 @@ int main() {
     hconcat(comparison, dst_dark_channel, comparison);
     imwrite("output/realtime_dehazing/comparison.jpg", comparison);
 
-    cout << "测试完成，结果已保存到 output/realtime_dehazing/ 目录" << endl;
+    cout << "Test completed, results saved to output/realtime_dehazing/ directory" << endl;
     return 0;
 }

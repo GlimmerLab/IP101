@@ -269,16 +269,16 @@ void histogram_analysis(const Mat& src) {
     cout << "Processed dynamic range: " << (max_val_result - min_val_result) << endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
     cout << "=== Multi-scale Detail Enhancement Algorithm Test ===" << endl;
 
     // Create output directory
     create_output_directories();
 
-    // Load test image
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "Cannot load test image" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 

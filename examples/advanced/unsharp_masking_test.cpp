@@ -16,7 +16,7 @@ void create_output_directories() {
 
 // 性能测试
 void performance_test(const Mat& src) {
-    cout << "\n--- 性能测试 ---" << endl;
+    cout << "\n--- Performance Test ---" << endl;
 
     Mat dst;
     int iterations = 10;
@@ -36,7 +36,7 @@ void performance_test(const Mat& src) {
     double avg_time = duration.count() / (double)iterations;
     double fps = 1000000.0 / avg_time;
 
-    cout << "IP101非锐化掩膜 - 平均时间: " << fixed << setprecision(2)
+    cout << "IP101 Unsharp Masking - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 
     // 测试OpenCV对比算法（使用拉普拉斯算子作为对比）
@@ -54,20 +54,20 @@ void performance_test(const Mat& src) {
     avg_time = duration.count() / (double)iterations;
     fps = 1000000.0 / avg_time;
 
-    cout << "OpenCV拉普拉斯算子 - 平均时间: " << fixed << setprecision(2)
+    cout << "OpenCV Laplacian Operator - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 }
 
 // 参数效果测试
 void parameter_effect_test(const Mat& src) {
-    cout << "\n--- 参数效果测试 ---" << endl;
+    cout << "\n--- Parameter Effect Test ---" << endl;
 
     vector<double> amount_values = {0.5, 1.0, 1.5, 2.0, 2.5};
     vector<double> radius_values = {0.3, 0.5, 0.7, 1.0, 1.5};
     vector<double> threshold_values = {0, 10, 20, 30, 50};
 
     // 测试强度参数
-    cout << "测试强度参数效果..." << endl;
+    cout << "Testing amount parameter effects..." << endl;
     for (size_t i = 0; i < amount_values.size(); i++) {
         Mat result;
         ip101::advanced::UnsharpMaskingParams params;
@@ -80,7 +80,7 @@ void parameter_effect_test(const Mat& src) {
     }
 
     // 测试半径参数
-    cout << "测试半径参数效果..." << endl;
+    cout << "Testing radius parameter effects..." << endl;
     for (size_t i = 0; i < radius_values.size(); i++) {
         Mat result;
         ip101::advanced::UnsharpMaskingParams params;
@@ -93,7 +93,7 @@ void parameter_effect_test(const Mat& src) {
     }
 
     // 测试阈值参数
-    cout << "测试阈值参数效果..." << endl;
+    cout << "Testing threshold parameter effects..." << endl;
     for (size_t i = 0; i < threshold_values.size(); i++) {
         Mat result;
         ip101::advanced::UnsharpMaskingParams params;
@@ -108,7 +108,7 @@ void parameter_effect_test(const Mat& src) {
 
 // 可视化测试
 void visualization_test(const Mat& src) {
-    cout << "\n--- 可视化测试 ---" << endl;
+    cout << "\n--- Visualization Test ---" << endl;
 
     // 应用非锐化掩膜
     Mat dst_unsharp;
@@ -131,7 +131,12 @@ void visualization_test(const Mat& src) {
     imwrite("output/unsharp_masking/opencv_comparison.jpg", opencv_result);
 
     // 创建对比图像
-    vector<Mat> images = {src, dst_unsharp, opencv_result};
+    // Ensure all images have the same size for hconcat
+    Mat dst_unsharp_resized, opencv_result_resized;
+    resize(dst_unsharp, dst_unsharp_resized, src.size());
+    resize(opencv_result, opencv_result_resized, src.size());
+
+    vector<Mat> images = {src, dst_unsharp_resized, opencv_result_resized};
     Mat comparison;
     hconcat(images, comparison);
 
@@ -153,7 +158,7 @@ void visualization_test(const Mat& src) {
 
 // 特殊场景测试
 void special_scenario_test(const Mat& src) {
-    cout << "\n--- 特殊场景测试 ---" << endl;
+    cout << "\n--- Special Scenario Test ---" << endl;
 
     // 创建模糊图像
     Mat blurred = src.clone();
@@ -202,7 +207,7 @@ void special_scenario_test(const Mat& src) {
 
 // 质量评估
 void quality_assessment(const Mat& src) {
-    cout << "\n--- 质量评估 ---" << endl;
+    cout << "\n--- Quality Assessment ---" << endl;
 
     // 应用非锐化掩膜
     Mat dst_unsharp;
@@ -236,15 +241,18 @@ void quality_assessment(const Mat& src) {
     meanStdDev(laplacian_result, mean_lap_result, std_lap_result);
     meanStdDev(laplacian_opencv, mean_lap_opencv, std_lap_opencv);
 
-    cout << "Original Laplacian response - Mean: " << mean_lap_src[0] << ", Std Dev: " << std_lap_src[0] << endl;
-    cout << "Unsharp masking Laplacian response - Mean: " << mean_lap_result[0] << ", Std Dev: " << std_lap_result[0] << endl;
-    cout << "OpenCV Laplacian response - Mean: " << mean_lap_opencv[0] << ", Std Dev: " << std_lap_opencv[0] << endl;
-    cout << "Sharpening enhancement factor (Unsharp): " << std_lap_result[0] / std_lap_src[0] << endl;
-    cout << "Sharpening enhancement factor (OpenCV): " << std_lap_opencv[0] / std_lap_src[0] << endl;
+    cout << "Original Laplacian Response - Mean: " << mean_lap_src[0] << ", Std Dev: " << std_lap_src[0] << endl;
+    cout << "Unsharp Masking Laplacian Response - Mean: " << mean_lap_result[0] << ", Std Dev: " << std_lap_result[0] << endl;
+    cout << "OpenCV Laplacian Response - Mean: " << mean_lap_opencv[0] << ", Std Dev: " << std_lap_opencv[0] << endl;
+    cout << "Sharpening Enhancement Factor (Unsharp): " << std_lap_result[0] / std_lap_src[0] << endl;
+    cout << "Sharpening Enhancement Factor (OpenCV): " << std_lap_opencv[0] / std_lap_src[0] << endl;
 
     // 计算PSNR
     Mat diff;
-    absdiff(src, dst_unsharp, diff);
+    // Ensure both images have the same size for absdiff
+    Mat dst_unsharp_resized;
+    resize(dst_unsharp, dst_unsharp_resized, src.size());
+    absdiff(src, dst_unsharp_resized, diff);
     diff.convertTo(diff, CV_32F);
     diff = diff.mul(diff);
 
@@ -265,8 +273,8 @@ void quality_assessment(const Mat& src) {
     double similarity_unsharp = compareHist(hist_src, hist_result, HISTCMP_CORREL);
     double similarity_opencv = compareHist(hist_src, hist_opencv, HISTCMP_CORREL);
 
-    cout << "Histogram similarity (Unsharp): " << fixed << setprecision(3) << similarity_unsharp << endl;
-    cout << "Histogram similarity (OpenCV): " << similarity_opencv << endl;
+    cout << "Histogram Similarity (Unsharp): " << fixed << setprecision(3) << similarity_unsharp << endl;
+    cout << "Histogram Similarity (OpenCV): " << similarity_opencv << endl;
 
     // 计算边缘增强效果
     Mat edges_src, edges_result, edges_opencv;
@@ -278,30 +286,30 @@ void quality_assessment(const Mat& src) {
     meanStdDev(edges_src, mean_edges_src, std_edges_src);
     meanStdDev(edges_result, mean_edges_result, std_edges_result);
 
-    cout << "Original edge density: " << mean_edges_src[0] << endl;
-    cout << "Unsharp masking edge density: " << mean_edges_result[0] << endl;
-    cout << "Edge enhancement factor: " << mean_edges_result[0] / mean_edges_src[0] << endl;
+    cout << "Original Edge Density: " << mean_edges_src[0] << endl;
+    cout << "Unsharp Masking Edge Density: " << mean_edges_result[0] << endl;
+    cout << "Edge Enhancement Factor: " << mean_edges_result[0] / mean_edges_src[0] << endl;
 
     // 计算颜色保持度
     Scalar mean_src, std_src, mean_result, std_result;
     meanStdDev(src, mean_src, std_src);
     meanStdDev(dst_unsharp, mean_result, std_result);
 
-    cout << "Color preservation - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
-    cout << "Color preservation - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
-    cout << "Color preservation - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
+    cout << "Color Preservation - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
+    cout << "Color Preservation - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
+    cout << "Color Preservation - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
     cout << "=== Unsharp Masking Algorithm Test ===" << endl;
 
     // 创建输出目录
     create_output_directories();
 
-    // 加载测试图像
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "Cannot load test image" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 

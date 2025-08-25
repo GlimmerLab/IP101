@@ -52,7 +52,16 @@ foreach(example ${ADVANCED_EXAMPLES})
     target_link_libraries(${example_name}
         ip101_advanced
         ip101_basic
+        ip101_utils
         ${IP101_COMMON_LIBRARIES}
+    )
+
+    # 设置包含目录
+    target_include_directories(${example_name}
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/utils
+        ${OpenCV_INCLUDE_DIRS}
     )
 
     # 安装可执行文件

@@ -15,19 +15,10 @@ using namespace std;
 int main(int argc, char* argv[]) {
     cout << "=== Adaptive Logarithmic Mapping Algorithm Test ===" << endl;
 
-    // Check parameters
-    if (argc < 2) {
-        cout << "Usage: " << argv[0] << " <input image path>" << endl;
-        cout << "Example: " << argv[0] << " assets/imori.jpg" << endl;
-        return -1;
-    }
-
-    string input_path = argv[1];
-
-    // Read image
-    Mat src = imread(input_path);
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cout << "Error: Cannot read image " << input_path << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 

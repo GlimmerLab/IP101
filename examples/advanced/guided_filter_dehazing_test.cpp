@@ -10,15 +10,16 @@
 using namespace std;
 using namespace cv;
 
-int main() {
-    cout << "=== 导向滤波去雾算法测试 ===" << endl;
+int main(int argc, char** argv) {
+    cout << "=== Guided Filter Defogging Algorithm Test ===" << endl;
 
     filesystem::create_directories("output/guided_filter_dehazing");
 
-    Mat src = imread("test_images/test_image.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        src = Mat::zeros(480, 640, CV_8UC3);
-        src.setTo(Scalar(100, 150, 200));
+        cerr << "Error: Cannot load image " << image_path << endl;
+        return -1;
     }
 
     int rows = src.rows;
@@ -63,13 +64,13 @@ int main() {
     ip101::advanced::guided_filter_defogging(hazy_image, dst_guided, 15, 0.001, 0.95, 0.1);
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "导向滤波去雾算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Guided Filter Defogging Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     start = chrono::high_resolution_clock::now();
     ip101::advanced::kaiming_he_guided_defogging(hazy_image, dst_kaiming_he, 15, 0.001, 0.95, 0.1);
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "何凯明导向滤波去雾算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Kaiming He Guided Filter Defogging Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     // 保存结果
     imwrite("output/guided_filter_dehazing/hazy_original.jpg", hazy_image);
@@ -82,6 +83,6 @@ int main() {
     hconcat(comparison, dst_kaiming_he, comparison);
     imwrite("output/guided_filter_dehazing/comparison.jpg", comparison);
 
-    cout << "测试完成，结果已保存到 output/guided_filter_dehazing/ 目录" << endl;
+    cout << "Test completed, results saved to output/guided_filter_dehazing/ directory" << endl;
     return 0;
 }

@@ -33,7 +33,7 @@ target_link_libraries(ip101_basic
     ${IP101_COMMON_LIBRARIES}
 )
 
-# 包含头文件目录（使用生成器表达式）
+# 包含头文件目录
 target_include_directories(ip101_basic
     PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>

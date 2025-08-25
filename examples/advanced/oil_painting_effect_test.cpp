@@ -16,7 +16,7 @@ void create_output_directories() {
 
 // 性能测试
 void performance_test(const Mat& src) {
-    cout << "=== 油画效果性能测试 ===" << endl;
+    cout << "=== Oil Painting Effect Performance Test ===" << endl;
 
     Mat dst;
     int iterations = 10;
@@ -35,7 +35,7 @@ void performance_test(const Mat& src) {
     double avg_time = duration.count() / (double)iterations;
     double fps = 1000000.0 / avg_time;
 
-    cout << "IP101油画效果 - 平均时间: " << fixed << setprecision(2)
+    cout << "IP101 Oil Painting Effect - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 
     // 测试OpenCV对比算法（使用双边滤波作为对比）
@@ -50,19 +50,19 @@ void performance_test(const Mat& src) {
     avg_time = duration.count() / (double)iterations;
     fps = 1000000.0 / avg_time;
 
-    cout << "OpenCV双边滤波 - 平均时间: " << fixed << setprecision(2)
+    cout << "OpenCV Bilateral Filter - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 }
 
 // 参数效果测试
 void parameter_effect_test(const Mat& src) {
-    cout << "\n--- 参数效果测试 ---" << endl;
+    cout << "\n--- Parameter Effect Test ---" << endl;
 
     vector<int> radius_values = {3, 5, 7, 9, 11};
     vector<int> intensity_levels = {10, 20, 30, 40, 50};
 
-    // 测试半径参数
-    cout << "测试半径参数效果..." << endl;
+    // Test radius parameters
+    cout << "Testing radius parameter effects..." << endl;
     for (size_t i = 0; i < radius_values.size(); i++) {
         Mat result;
         ip101::advanced::OilPaintingParams params;
@@ -73,8 +73,8 @@ void parameter_effect_test(const Mat& src) {
         imwrite(filename, result);
     }
 
-    // 测试强度级别参数
-    cout << "测试强度级别参数效果..." << endl;
+    // Test intensity level parameters
+    cout << "Testing intensity level parameter effects..." << endl;
     for (size_t i = 0; i < intensity_levels.size(); i++) {
         Mat result;
         ip101::advanced::OilPaintingParams params;
@@ -88,7 +88,7 @@ void parameter_effect_test(const Mat& src) {
 
 // 可视化测试
 void visualization_test(const Mat& src) {
-    cout << "\n--- 可视化测试 ---" << endl;
+    cout << "\n--- Visualization Test ---" << endl;
 
     // 应用油画效果
     Mat dst_oil_painting;
@@ -107,7 +107,12 @@ void visualization_test(const Mat& src) {
     imwrite("output/oil_painting_effect/opencv_comparison.jpg", opencv_result);
 
     // 创建对比图像
-    vector<Mat> images = {src, dst_oil_painting, opencv_result};
+    // Ensure all images have the same size for hconcat
+    Mat dst_oil_painting_resized, opencv_result_resized;
+    resize(dst_oil_painting, dst_oil_painting_resized, src.size());
+    resize(opencv_result, opencv_result_resized, src.size());
+
+    vector<Mat> images = {src, dst_oil_painting_resized, opencv_result_resized};
     Mat comparison;
     hconcat(images, comparison);
 
@@ -129,7 +134,7 @@ void visualization_test(const Mat& src) {
 
 // 特殊场景测试
 void special_scenario_test(const Mat& src) {
-    cout << "\n--- 特殊场景测试 ---" << endl;
+    cout << "\n--- Special Scenario Test ---" << endl;
 
     // 创建噪声图像
     Mat noisy = src.clone();
@@ -175,7 +180,7 @@ void special_scenario_test(const Mat& src) {
 
 // 质量评估
 void quality_assessment(const Mat& src) {
-    cout << "\n--- 质量评估 ---" << endl;
+    cout << "\n--- Quality Assessment ---" << endl;
 
     // 应用油画效果
     Mat dst_oil_painting;
@@ -205,15 +210,18 @@ void quality_assessment(const Mat& src) {
     meanStdDev(laplacian_result, mean_lap_result, std_lap_result);
     meanStdDev(laplacian_opencv, mean_lap_opencv, std_lap_opencv);
 
-    cout << "原图拉普拉斯响应 - 均值: " << mean_lap_src[0] << ", 标准差: " << std_lap_src[0] << endl;
-    cout << "油画效果拉普拉斯响应 - 均值: " << mean_lap_result[0] << ", 标准差: " << std_lap_result[0] << endl;
-    cout << "OpenCV双边滤波拉普拉斯响应 - 均值: " << mean_lap_opencv[0] << ", 标准差: " << std_lap_opencv[0] << endl;
-    cout << "细节保留率(油画): " << std_lap_result[0] / std_lap_src[0] << endl;
-    cout << "细节保留率(OpenCV): " << std_lap_opencv[0] / std_lap_src[0] << endl;
+    cout << "Original Laplacian Response - Mean: " << mean_lap_src[0] << ", Std: " << std_lap_src[0] << endl;
+    cout << "Oil Painting Laplacian Response - Mean: " << mean_lap_result[0] << ", Std: " << std_lap_result[0] << endl;
+    cout << "OpenCV Bilateral Filter Laplacian Response - Mean: " << mean_lap_opencv[0] << ", Std: " << std_lap_opencv[0] << endl;
+    cout << "Detail Preservation Rate (Oil Painting): " << std_lap_result[0] / std_lap_src[0] << endl;
+    cout << "Detail Preservation Rate (OpenCV): " << std_lap_opencv[0] / std_lap_src[0] << endl;
 
     // 计算PSNR
     Mat diff;
-    absdiff(src, dst_oil_painting, diff);
+    // Ensure both images have the same size for absdiff
+    Mat dst_oil_painting_resized;
+    resize(dst_oil_painting, dst_oil_painting_resized, src.size());
+    absdiff(src, dst_oil_painting_resized, diff);
     diff.convertTo(diff, CV_32F);
     diff = diff.mul(diff);
 
@@ -234,33 +242,33 @@ void quality_assessment(const Mat& src) {
     double similarity_oil = compareHist(hist_src, hist_result, HISTCMP_CORREL);
     double similarity_opencv = compareHist(hist_src, hist_opencv, HISTCMP_CORREL);
 
-    cout << "直方图相似度(油画): " << fixed << setprecision(3) << similarity_oil << endl;
-    cout << "直方图相似度(OpenCV): " << similarity_opencv << endl;
+    cout << "Histogram Similarity (Oil Painting): " << fixed << setprecision(3) << similarity_oil << endl;
+    cout << "Histogram Similarity (OpenCV): " << similarity_opencv << endl;
 
     // 计算颜色保持度
     Scalar mean_src, std_src, mean_result, std_result;
     meanStdDev(src, mean_src, std_src);
     meanStdDev(dst_oil_painting, mean_result, std_result);
 
-    cout << "颜色保持度 - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
-    cout << "颜色保持度 - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
-    cout << "颜色保持度 - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
+    cout << "Color Preservation - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
+    cout << "Color Preservation - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
+    cout << "Color Preservation - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
 }
 
-int main() {
-    cout << "=== 油画效果算法测试 ===" << endl;
+int main(int argc, char** argv) {
+    cout << "=== Oil Painting Effect Algorithm Test ===" << endl;
 
     // 创建输出目录
     create_output_directories();
 
-    // 加载测试图像
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "无法加载测试图像" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 
-    cout << "图像尺寸: " << src.cols << "x" << src.rows << endl;
+    cout << "Image size: " << src.cols << "x" << src.rows << endl;
 
     // 执行各项测试
     performance_test(src);
@@ -269,8 +277,8 @@ int main() {
     special_scenario_test(src);
     quality_assessment(src);
 
-    cout << "\n=== 测试完成 ===" << endl;
-    cout << "所有结果已保存到 output/oil_painting_effect/ 目录" << endl;
+    cout << "\n=== Test Completed ===" << endl;
+    cout << "All results saved to output/oil_painting_effect/ directory" << endl;
 
     return 0;
 }

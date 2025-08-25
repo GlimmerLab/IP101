@@ -16,7 +16,7 @@ void create_output_directories() {
 
 // 性能测试
 void performance_test(const Mat& src) {
-    cout << "=== 皮肤美化性能测试 ===" << endl;
+    cout << "=== Skin Beauty Performance Test ===" << endl;
 
     Mat dst;
     int iterations = 10;
@@ -36,7 +36,7 @@ void performance_test(const Mat& src) {
     double avg_time = duration.count() / (double)iterations;
     double fps = 1000000.0 / avg_time;
 
-    cout << "IP101皮肤美化 - 平均时间: " << fixed << setprecision(2)
+    cout << "IP101 Skin Beauty - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 
     // 测试OpenCV对比算法（使用双边滤波作为对比）
@@ -51,20 +51,20 @@ void performance_test(const Mat& src) {
     avg_time = duration.count() / (double)iterations;
     fps = 1000000.0 / avg_time;
 
-    cout << "OpenCV双边滤波 - 平均时间: " << fixed << setprecision(2)
+    cout << "OpenCV Bilateral Filter - Average Time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms, FPS: " << fps << endl;
 }
 
 // 参数效果测试
 void parameter_effect_test(const Mat& src) {
-    cout << "\n--- 参数效果测试 ---" << endl;
+    cout << "\n--- Parameter Effect Test ---" << endl;
 
     vector<double> smooth_strengths = {0.3, 0.5, 0.7, 0.8, 0.9};
     vector<double> whiten_strengths = {0.2, 0.4, 0.6, 0.8, 1.0};
     vector<double> lighting_strengths = {0.1, 0.3, 0.5, 0.7, 0.9};
 
-    // 测试平滑强度参数
-    cout << "测试平滑强度参数效果..." << endl;
+    // Test smoothing strength parameters
+    cout << "Testing smoothing strength parameter effects..." << endl;
     for (size_t i = 0; i < smooth_strengths.size(); i++) {
         Mat result;
         ip101::advanced::SkinBeautyParams params;
@@ -76,8 +76,8 @@ void parameter_effect_test(const Mat& src) {
         imwrite(filename, result);
     }
 
-    // 测试美白强度参数
-    cout << "测试美白强度参数效果..." << endl;
+    // Test whitening strength parameters
+    cout << "Testing whitening strength parameter effects..." << endl;
     for (size_t i = 0; i < whiten_strengths.size(); i++) {
         Mat result;
         ip101::advanced::SkinBeautyParams params;
@@ -89,8 +89,8 @@ void parameter_effect_test(const Mat& src) {
         imwrite(filename, result);
     }
 
-    // 测试光照增强参数
-    cout << "测试光照增强参数效果..." << endl;
+    // Test lighting enhancement parameters
+    cout << "Testing lighting enhancement parameter effects..." << endl;
     for (size_t i = 0; i < lighting_strengths.size(); i++) {
         Mat result;
         ip101::advanced::SkinBeautyParams params;
@@ -105,7 +105,7 @@ void parameter_effect_test(const Mat& src) {
 
 // 可视化测试
 void visualization_test(const Mat& src) {
-    cout << "\n--- 可视化测试 ---" << endl;
+    cout << "\n--- Visualization Test ---" << endl;
 
     // 应用皮肤美化
     Mat dst_skin_beauty;
@@ -125,7 +125,12 @@ void visualization_test(const Mat& src) {
     imwrite("output/skin_beauty/opencv_comparison.jpg", opencv_result);
 
     // 创建对比图像
-    vector<Mat> images = {src, dst_skin_beauty, opencv_result};
+    // Ensure all images have the same size for hconcat
+    Mat dst_skin_beauty_resized, opencv_result_resized;
+    resize(dst_skin_beauty, dst_skin_beauty_resized, src.size());
+    resize(opencv_result, opencv_result_resized, src.size());
+
+    vector<Mat> images = {src, dst_skin_beauty_resized, opencv_result_resized};
     Mat comparison;
     hconcat(images, comparison);
 
@@ -147,7 +152,7 @@ void visualization_test(const Mat& src) {
 
 // 特殊场景测试
 void special_scenario_test(const Mat& src) {
-    cout << "\n--- 特殊场景测试 ---" << endl;
+    cout << "\n--- Special Scenario Test ---" << endl;
 
     // 创建暗图像
     Mat dark = src.clone();
@@ -196,7 +201,7 @@ void special_scenario_test(const Mat& src) {
 
 // 质量评估
 void quality_assessment(const Mat& src) {
-    cout << "\n--- 质量评估 ---" << endl;
+    cout << "\n--- Quality Assessment ---" << endl;
 
     // 应用皮肤美化
     Mat dst_skin_beauty;
@@ -227,15 +232,18 @@ void quality_assessment(const Mat& src) {
     meanStdDev(laplacian_result, mean_lap_result, std_lap_result);
     meanStdDev(laplacian_opencv, mean_lap_opencv, std_lap_opencv);
 
-    cout << "原图拉普拉斯响应 - 均值: " << mean_lap_src[0] << ", 标准差: " << std_lap_src[0] << endl;
-    cout << "皮肤美化拉普拉斯响应 - 均值: " << mean_lap_result[0] << ", 标准差: " << std_lap_result[0] << endl;
-    cout << "OpenCV双边滤波拉普拉斯响应 - 均值: " << mean_lap_opencv[0] << ", 标准差: " << std_lap_opencv[0] << endl;
-    cout << "平滑度(皮肤美化): " << std_lap_result[0] / std_lap_src[0] << endl;
-    cout << "平滑度(OpenCV): " << std_lap_opencv[0] / std_lap_src[0] << endl;
+    cout << "Original Laplacian Response - Mean: " << mean_lap_src[0] << ", Std: " << std_lap_src[0] << endl;
+    cout << "Skin Beauty Laplacian Response - Mean: " << mean_lap_result[0] << ", Std: " << std_lap_result[0] << endl;
+    cout << "OpenCV Bilateral Filter Laplacian Response - Mean: " << mean_lap_opencv[0] << ", Std: " << std_lap_opencv[0] << endl;
+    cout << "Smoothness (Skin Beauty): " << std_lap_result[0] / std_lap_src[0] << endl;
+    cout << "Smoothness (OpenCV): " << std_lap_opencv[0] / std_lap_src[0] << endl;
 
     // 计算PSNR
     Mat diff;
-    absdiff(src, dst_skin_beauty, diff);
+    // Ensure both images have the same size for absdiff
+    Mat dst_skin_beauty_resized;
+    resize(dst_skin_beauty, dst_skin_beauty_resized, src.size());
+    absdiff(src, dst_skin_beauty_resized, diff);
     diff.convertTo(diff, CV_32F);
     diff = diff.mul(diff);
 
@@ -256,40 +264,40 @@ void quality_assessment(const Mat& src) {
     double similarity_beauty = compareHist(hist_src, hist_result, HISTCMP_CORREL);
     double similarity_opencv = compareHist(hist_src, hist_opencv, HISTCMP_CORREL);
 
-    cout << "直方图相似度(皮肤美化): " << fixed << setprecision(3) << similarity_beauty << endl;
-    cout << "直方图相似度(OpenCV): " << similarity_opencv << endl;
+    cout << "Histogram Similarity (Skin Beauty): " << fixed << setprecision(3) << similarity_beauty << endl;
+    cout << "Histogram Similarity (OpenCV): " << similarity_opencv << endl;
 
     // 计算颜色保持度
     Scalar mean_src, std_src, mean_result, std_result;
     meanStdDev(src, mean_src, std_src);
     meanStdDev(dst_skin_beauty, mean_result, std_result);
 
-    cout << "颜色保持度 - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
-    cout << "颜色保持度 - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
-    cout << "颜色保持度 - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
+    cout << "Color Preservation - B: " << abs(mean_result[0] - mean_src[0]) / mean_src[0] * 100 << "%" << endl;
+    cout << "Color Preservation - G: " << abs(mean_result[1] - mean_src[1]) / mean_src[1] * 100 << "%" << endl;
+    cout << "Color Preservation - R: " << abs(mean_result[2] - mean_src[2]) / mean_src[2] * 100 << "%" << endl;
 
     // 计算亮度变化
     Scalar mean_gray_src, mean_gray_result;
     meanStdDev(gray_src, mean_gray_src, std_src);
     meanStdDev(gray_result, mean_gray_result, std_result);
 
-    cout << "亮度变化: " << (mean_gray_result[0] - mean_gray_src[0]) / mean_gray_src[0] * 100 << "%" << endl;
+    cout << "Brightness Change: " << (mean_gray_result[0] - mean_gray_src[0]) / mean_gray_src[0] * 100 << "%" << endl;
 }
 
-int main() {
-    cout << "=== 皮肤美化算法测试 ===" << endl;
+int main(int argc, char** argv) {
+    cout << "=== Skin Beauty Algorithm Test ===" << endl;
 
     // 创建输出目录
     create_output_directories();
 
-    // 加载测试图像
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "无法加载测试图像" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 
-    cout << "图像尺寸: " << src.cols << "x" << src.rows << endl;
+    cout << "Image size: " << src.cols << "x" << src.rows << endl;
 
     // 执行各项测试
     performance_test(src);
@@ -298,8 +306,8 @@ int main() {
     special_scenario_test(src);
     quality_assessment(src);
 
-    cout << "\n=== 测试完成 ===" << endl;
-    cout << "所有结果已保存到 output/skin_beauty/ 目录" << endl;
+    cout << "\n=== Test Completed ===" << endl;
+    cout << "All results saved to output/skin_beauty/ directory" << endl;
 
     return 0;
 }

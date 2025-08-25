@@ -17,7 +17,8 @@ if(GTest_FOUND)
     # 添加包含目录
     target_include_directories(test_image_processing
         PRIVATE
-            ${CMAKE_SOURCE_DIR}/cpp
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/utils
             ${OpenCV_INCLUDE_DIRS}
     )
 

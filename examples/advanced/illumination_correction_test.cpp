@@ -10,15 +10,16 @@
 using namespace std;
 using namespace cv;
 
-int main() {
-    cout << "=== 光照不均匀校正算法测试 ===" << endl;
+int main(int argc, char** argv) {
+    cout << "=== Illumination Correction Algorithm Test ===" << endl;
 
     filesystem::create_directories("output/illumination_correction");
 
-    Mat src = imread("test_images/test_image.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        src = Mat::zeros(480, 640, CV_8UC3);
-        src.setTo(Scalar(100, 150, 200));
+        cerr << "Error: Cannot load image " << image_path << endl;
+        return -1;
     }
 
     int rows = src.rows;
@@ -57,19 +58,19 @@ int main() {
     ip101::advanced::homomorphic_illumination_correction(uneven_image, dst_homomorphic, 0.3, 1.5, 30.0);
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "同态滤波算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Homomorphic Filter Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     start = chrono::high_resolution_clock::now();
     ip101::advanced::background_subtraction_correction(uneven_image, dst_background, 51, 0.5);
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "背景减除算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Background Subtraction Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     start = chrono::high_resolution_clock::now();
     ip101::advanced::multi_scale_illumination_correction(uneven_image, dst_multiscale, {15, 80, 250});
     end = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    cout << "多尺度算法 - 耗时: " << duration.count() << " 微秒" << endl;
+    cout << "Multi-scale Algorithm - Time: " << duration.count() << " microseconds" << endl;
 
     // 保存结果
     imwrite("output/illumination_correction/uneven_original.jpg", uneven_image);
@@ -84,6 +85,6 @@ int main() {
     hconcat(comparison, dst_multiscale, comparison);
     imwrite("output/illumination_correction/comparison.jpg", comparison);
 
-    cout << "测试完成，结果已保存到 output/illumination_correction/ 目录" << endl;
+    cout << "Test completed, results saved to output/illumination_correction/ directory" << endl;
     return 0;
 }

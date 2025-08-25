@@ -119,6 +119,7 @@ set(IP101_COMMON_INCLUDES
 set(IP101_COMMON_LIBRARIES ${OpenCV_LIBS})
 
 # 添加子目录
+add_subdirectory(utils)
 add_subdirectory(cpp)
 add_subdirectory(examples)
 

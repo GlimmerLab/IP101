@@ -275,16 +275,16 @@ void quality_assessment(const Mat& src) {
     cout << "Detection rate difference: " << (rectangles.size() - opencv_rect_count) << endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
     cout << "=== Rectangle Detection Algorithm Test ===" << endl;
 
     // Create output directories
     create_output_directories();
 
-    // Load test image
-    Mat src = imread("assets/imori.jpg");
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cerr << "Unable to load test image" << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 

@@ -32,4 +32,12 @@ foreach(example ${TEST_EXAMPLES})
         ip101_basic
         ${IP101_COMMON_LIBRARIES}
     )
+
+    # 设置包含目录
+    target_include_directories(${example}
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/utils
+        ${OpenCV_INCLUDE_DIRS}
+    )
 endforeach()

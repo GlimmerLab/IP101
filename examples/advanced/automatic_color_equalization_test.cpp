@@ -13,32 +13,23 @@ using namespace cv;
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    cout << "=== 自动色彩均衡算法测试 ===" << endl;
+    cout << "=== Automatic Color Equalization Algorithm Test ===" << endl;
 
-    // 检查参数
-    if (argc < 2) {
-        cout << "用法: " << argv[0] << " <输入图像路径>" << endl;
-        cout << "示例: " << argv[0] << " assets/imori.jpg" << endl;
-        return -1;
-    }
-
-    string input_path = argv[1];
-
-    // 读取图像
-    Mat src = imread(input_path);
+    string image_path = (argc > 1) ? argv[1] : "assets/imori.jpg";
+    Mat src = imread(image_path);
     if (src.empty()) {
-        cout << "错误: 无法读取图像 " << input_path << endl;
+        cerr << "Error: Cannot load image " << image_path << endl;
         return -1;
     }
 
-    cout << "输入图像尺寸: " << src.size() << endl;
-    cout << "输入图像类型: " << src.type() << endl;
+    cout << "Input image size: " << src.size() << endl;
+    cout << "Input image type: " << src.type() << endl;
 
     // 创建输出目录
     filesystem::create_directories("output/automatic_color_equalization");
 
     // ==================== 基础功能测试 ====================
-    cout << "\n--- 基础功能测试 ---" << endl;
+    cout << "\n--- Basic Functionality Test ---" << endl;
 
     Mat dst_ace;
 
@@ -54,7 +45,7 @@ int main(int argc, char* argv[]) {
         double alpha = param_combinations[i].first;
         double beta = param_combinations[i].second;
 
-        cout << "测试参数 - alpha: " << alpha << ", beta: " << beta << endl;
+        cout << "Test parameters - alpha: " << alpha << ", beta: " << beta << endl;
 
         Mat result;
         ip101::advanced::automatic_color_equalization(src, result, alpha, beta);
@@ -69,7 +60,7 @@ int main(int argc, char* argv[]) {
     }
 
     // ==================== 性能测试 ====================
-    cout << "\n--- 性能测试 ---" << endl;
+    cout << "\n--- Performance Test ---" << endl;
 
     // 测试IP101实现性能
     Mat test_result;
@@ -84,16 +75,16 @@ int main(int argc, char* argv[]) {
     auto duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);
     double avg_time = duration.count() / (double)iterations;
 
-    cout << "IP101实现平均处理时间: " << fixed << setprecision(2)
+    cout << "IP101 implementation average processing time: " << fixed << setprecision(2)
          << avg_time / 1000.0 << " ms" << endl;
-    cout << "处理速度: " << fixed << setprecision(2)
+    cout << "Processing speed: " << fixed << setprecision(2)
          << 1000.0 / avg_time << " FPS" << endl;
 
     // ==================== 参数效果测试 ====================
-    cout << "\n--- 参数效果测试 ---" << endl;
+    cout << "\n--- Parameter Effect Test ---" << endl;
 
     // 测试alpha参数的影响
-    cout << "测试alpha参数影响 (beta=0.85):" << endl;
+    cout << "Testing alpha parameter effect (beta=0.85):" << endl;
     for (double alpha = 0.1; alpha <= 1.0; alpha += 0.2) {
         Mat alpha_result;
         ip101::advanced::automatic_color_equalization(src, alpha_result, alpha, 0.85);
@@ -177,7 +168,7 @@ int main(int argc, char* argv[]) {
     cout << "PSNR: " << fixed << setprecision(2) << psnr << " dB" << endl;
 
     // ==================== 直方图分析 ====================
-    cout << "\n--- 直方图分析 ---" << endl;
+    cout << "\n--- Histogram Analysis ---" << endl;
 
     // 计算原图和增强后图像的直方图
     vector<Mat> bgr_planes;
@@ -206,11 +197,11 @@ int main(int argc, char* argv[]) {
     double g_similarity = compareHist(g_hist, g_hist_result, HISTCMP_CORREL);
     double r_similarity = compareHist(r_hist, r_hist_result, HISTCMP_CORREL);
 
-    cout << "直方图相似度 - B: " << fixed << setprecision(3) << b_similarity
+    cout << "Histogram similarity - B: " << fixed << setprecision(3) << b_similarity
          << ", G: " << g_similarity << ", R: " << r_similarity << endl;
 
     // ==================== Lab色彩空间分析 ====================
-    cout << "\n--- Lab色彩空间分析 ---" << endl;
+    cout << "\n--- Lab Color Space Analysis ---" << endl;
 
     // 转换到Lab色彩空间
     Mat lab_src, lab_result;
